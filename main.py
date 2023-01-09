@@ -1,11 +1,12 @@
 # This is a sample Python script.
 import os
 import keras
+import face_recognition
 
 import numpy as np
+from numpy import array
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
-
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -14,6 +15,7 @@ from keras.layers import Flatten
 from keras.layers import Activation
 from keras.layers.convolutional import Conv2D
 from keras.layers.convolutional import MaxPooling2D
+
 from keras.utils import np_utils
 from keras.metrics import categorical_accuracy
 from keras.models import model_from_json
@@ -68,6 +70,9 @@ def create_model():
 data_path = 'D:/CK+48'
 data_dir_list = os.listdir(data_path)
 
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+
 img_data_list = []
 
 for dataset in data_dir_list:
@@ -76,6 +81,7 @@ for dataset in data_dir_list:
     for img in img_list:
         input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
         input_img_resize = cv2.resize(input_img, (48, 48))
+
         img_data_list.append(input_img_resize)
 
 img_data = np.array(img_data_list)
@@ -118,3 +124,42 @@ validation_generator = data_generator_woth_aug.flow(x_test, y_test)
 
 model_custom = create_model()
 model_custom.summary()
+
+history = model_custom.fit(
+    x_train,
+    y_train,
+    batch_size=64,
+    epochs=2,
+)
+
+print("Evaluate on test data")
+results = model_custom.evaluate(x_test, y_test, batch_size=128)
+print("test loss, test acc:", results)
+
+# using the model on the group image
+
+# imagePath = 'D:/GroupImage.png'
+
+# image = face_recognition.load_image_file(imagePath)
+# face_locations = face_recognition.face_locations(image)
+
+# for face_location in face_locations:
+# top, right, bottom, left = face_location
+# face_image = image[top:bottom, left:right]
+# predict_img_resize = cv2.resize(face_image, (48, 48))
+
+# pre_data = np.array(predict_img_resize)
+# pre_data = pre_data.astype('float32')
+# pre_data = pre_data / 255
+
+# prediction = model_custom.predict(pre_data)
+# print(prediction)
+
+
+prediction = model_custom.predict(x_test[0:1])
+print("prediction:", prediction)
+
+# Generate arg maxes for predictions
+classes = np.argmax(prediction, axis=1)
+print(names[classes[0]])
+print(classes)
