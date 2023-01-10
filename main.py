@@ -2,11 +2,13 @@
 import os
 import keras
 import face_recognition
+from PIL import Image
 
 import numpy as np
 from numpy import array
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
+from numpy import asarray
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -155,11 +157,38 @@ print("test loss, test acc:", results)
 # prediction = model_custom.predict(pre_data)
 # print(prediction)
 
+imagePath = 'D:/GroupImage.png'
+image = face_recognition.load_image_file(imagePath)
+face_locations = face_recognition.face_locations(image)
 
-prediction = model_custom.predict(x_test[0:1])
+face_list = []
+count = 0
+for face_location in face_locations:
+    top, right, bottom, left = face_location
+
+    # You can access the actual face itself like this:
+    face_image = image[top:bottom, left:right]
+    face_resize = cv2.resize(face_image, (48, 48))
+    face_list.append(face_resize)
+    count = count + 1
+
+face_data = np.array(face_list)
+face_data = face_data.astype('float32')
+face_data = face_data / 255
+
+# for face in face_data:
+prediction = model_custom.predict(face_data[:count])
 print("prediction:", prediction)
-
-# Generate arg maxes for predictions
 classes = np.argmax(prediction, axis=1)
 print(names[classes[0]])
 print(classes)
+
+# Generate arg maxes for predictions
+
+
+# prediction = model_custom.predict(x_test[0:1])
+# print("prediction:", prediction)
+# Generate arg maxes for predictions
+# classes = np.argmax(prediction, axis=1)
+# print(names[classes[0]])
+# print(classes)
