@@ -157,7 +157,7 @@ print("test loss, test acc:", results)
 # prediction = model_custom.predict(pre_data)
 # print(prediction)
 
-imagePath = 'D:/GroupImage.png'
+imagePath = 'D:/DuoImage.png'
 image = face_recognition.load_image_file(imagePath)
 face_locations = face_recognition.face_locations(image)
 
