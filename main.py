@@ -27,6 +27,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 import pandas as pd  # data processing, CSV file I/O (e.g. pd.read_csv)
 import cv2
+from time import sleep
 import matplotlib.pyplot as plt
 # import matplotlib.image as mpimg
 from pylab import rcParams
@@ -35,6 +36,10 @@ rcParams['figure.figsize'] = 20, 10
 
 from keras.utils import np_utils
 
+# variables for web cam
+cam = cv2.VideoCapture(0)
+cv2.namedWindow("test")
+img_counter = 0
 
 # Input data files are available in the "../input/" directory.
 # For example, running this (by clicking run or pressing Shift+Enter) will list the files in the input directory
@@ -157,6 +162,7 @@ print("test loss, test acc:", results)
 # prediction = model_custom.predict(pre_data)
 # print(prediction)
 
+'''
 imagePath = 'D:/DuoImage.png'
 image = face_recognition.load_image_file(imagePath)
 face_locations = face_recognition.face_locations(image)
@@ -182,13 +188,55 @@ print("prediction:", prediction)
 classes = np.argmax(prediction, axis=1)
 print(names[classes[0]])
 print(classes)
+'''
 
-# Generate arg maxes for predictions
+while True:
+    ret, frame = cam.read()
+    if not ret:
+        print("failed to grab frame")
+        break
+    cv2.imshow("test", frame)
+
+    k = cv2.waitKey(1)
+    if k % 256 == 27:
+        # ESC pressed
+        print("Escape hit, closing...")
+        break
+
+    sleep(1) # this seems to work
+    img_name = "opencv_frame_{}.png".format(img_counter)
+    cv2.imwrite(img_name, frame) # has to save the photo to use it
+    print("{} written!".format(img_name))
+
+    image = face_recognition.load_image_file("opencv_frame_{}.png".format(img_counter))
+    face_locations = face_recognition.face_locations(image)
+
+    face_list = []
+    count = 0
+    for face_location in face_locations:
+        top, right, bottom, left = face_location
+
+        # You can access the actual face itself like this:
+        face_image = image[top:bottom, left:right]
+        face_resize = cv2.resize(face_image, (48, 48))
+        face_list.append(face_resize)
+        count = count + 1
+
+    face_data = np.array(face_list)
+    face_data = face_data.astype('float32')
+    face_data = face_data / 255
+
+    # for face in face_data:
+    prediction = model_custom.predict(face_data[:count])
+    print("prediction:", prediction)
+    classes = np.argmax(prediction, axis=1)
+    print(names[classes[0]])
+    print(classes)
+    img_counter += 1
 
 
-# prediction = model_custom.predict(x_test[0:1])
-# print("prediction:", prediction)
-# Generate arg maxes for predictions
-# classes = np.argmax(prediction, axis=1)
-# print(names[classes[0]])
-# print(classes)
+cam.release()
+
+cv2.destroyAllWindows()
+
+
