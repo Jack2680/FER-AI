@@ -3,6 +3,7 @@ import os
 import keras
 import face_recognition
 from PIL import Image
+import glob
 
 import numpy as np
 from numpy import array
@@ -43,7 +44,7 @@ img_counter = 0
 
 # Input data files are available in the "../input/" directory.
 # For example, running this (by clicking run or pressing Shift+Enter) will list the files in the input directory
-
+"""
 def create_model():
     model = Sequential()
     model.add(Conv2D(64, (3, 3), padding="same", input_shape=(48, 48, 3), activation='relu'))
@@ -142,7 +143,7 @@ history = model_custom.fit(
 print("Evaluate on test data")
 results = model_custom.evaluate(x_test, y_test, batch_size=128)
 print("test loss, test acc:", results)
-
+"""
 # using the model on the group image
 
 # imagePath = 'D:/GroupImage.png'
@@ -190,6 +191,9 @@ print(names[classes[0]])
 print(classes)
 '''
 
+model_custom = keras.models.load_model('EN_model')
+names = ['anger', 'contempt', 'disgust', 'fear', 'happy', 'sadness', 'surprise']
+
 while True:
     ret, frame = cam.read()
     if not ret:
@@ -203,12 +207,12 @@ while True:
         print("Escape hit, closing...")
         break
 
-    sleep(1) # this seems to work
-    img_name = "opencv_frame_{}.png".format(img_counter)
-    cv2.imwrite(img_name, frame) # has to save the photo to use it
-    print("{} written!".format(img_name))
+    # sleep(0.5)  # this seems to work
+    img_name = "opencv_frame.png"
+    cv2.imwrite(img_name, frame)  # has to save the photo to use it
 
-    image = face_recognition.load_image_file("opencv_frame_{}.png".format(img_counter))
+    # image = face_recognition.load_image_file("opencv_frame_{}.png".format(img_counter))
+    image = face_recognition.load_image_file("opencv_frame.png")
     face_locations = face_recognition.face_locations(image)
 
     face_list = []
@@ -227,16 +231,17 @@ while True:
     face_data = face_data / 255
 
     # for face in face_data:
-    prediction = model_custom.predict(face_data[:count])
-    print("prediction:", prediction)
-    classes = np.argmax(prediction, axis=1)
-    print(names[classes[0]])
-    print(classes)
-    img_counter += 1
+    if len(face_data) != 0:
+        prediction = model_custom.predict(face_data[:count])
+        # print("prediction:", prediction)
+        classes = np.argmax(prediction, axis=1)
+        print(names[classes[0]])
+        # print(classes)
 
+    removingfiles = glob.glob('D:/PythonProgram/pythonProject/pythonProject/opencv_frame.png')
+    for i in removingfiles:
+        os.remove(i)
 
 cam.release()
 
 cv2.destroyAllWindows()
-
-
