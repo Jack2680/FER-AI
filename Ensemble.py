@@ -1,14 +1,27 @@
 import os
 
 from keras.utils.np_utils import to_categorical
+from keras.utils.vis_utils import plot_model
 from matplotlib import pyplot
+from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 
 import cv2
 import numpy as np
 from keras.utils import np_utils
-from numpy import dstack
 from sklearn.metrics import accuracy_score
+
+from sklearn.datasets import make_blobs
+from sklearn.metrics import accuracy_score
+from keras.models import load_model
+# from keras.utils import to_categorical
+# from keras.utils import plot_model
+from keras.models import Model
+from keras.layers import Input
+from keras.layers import Dense
+from keras.layers.merge import concatenate
+from numpy import argmax
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -19,7 +32,9 @@ from keras.layers.convolutional import MaxPooling2D
 from keras.models import load_model
 from sklearn.linear_model import LogisticRegression
 
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
 
+'''
 def fit_model(trainX, trainY):
     model = Sequential()
 
@@ -50,7 +65,7 @@ def fit_model(trainX, trainY):
     history = model.fit(trainX, trainY, epochs=100, verbose=0)
 
     return model
-
+'''
 
 # load models from file
 def load_all_models(n_models):
@@ -66,41 +81,49 @@ def load_all_models(n_models):
     return all_models
 
 
-# create stacked model input dataset as outputs from the ensemble
-def stacked_dataset(members, inputX):
-    stackX = None
-    for model in members:
-        # make prediction
-        yhat = model.predict(inputX, verbose=0)
-        # stack predictions into [rows, members, probabilities]
-        if stackX is None:
-            stackX = yhat
-        else:
-            stackX = dstack((stackX, yhat))
-            print(stackX.shape)
-            stackX = stackX.reshape((stackX.shape[0], stackX.shape[1] * stackX.shape[2]))
-            print(stackX.shape)
-            print(stackX)
-    return stackX
+# define stacked model from multiple member input models
+def define_stacked_model(members):
+    # update all layers in all models to not be trainable
+    for i in range(len(members)):
+        model = members[i]
+        for layer in model.layers:
+            # make not trainable
+            layer.trainable = False
+            # rename to avoid 'unique layer name' issue
+            layer._name = 'ensemble_' + str(i + 1) + '_' + layer.name
+        ensemble_visible = [model.input for model in members]
+        ensemble_outputs = [model.output for model in members]
+        merge = concatenate(ensemble_outputs)
+        hidden = Dense(10, activation='relu')(merge)
+        output = Dense(7, activation='softmax')(hidden)
 
+    model = Model(inputs=ensemble_visible, outputs=output)
 
-# fit a model based on the outputs from the ensemble members
-def fit_stacked_model(members, inputX, inputy):
-    # create dataset using ensemble
-    stackedX = stacked_dataset(members, inputX)
-    # fit standalone model
-    model = LogisticRegression()
-    model.fit(stackedX, inputy)
+        # plot graph of ensemble
+        # plot_model(model, show_shapes=True, to_file='model_graph.png')
+        # compile
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
 
-# make a prediction with the stacked model
-def stacked_prediction(members, model, inputX):
-    # create dataset using ensemble
-    stackedX = stacked_dataset(members, inputX)
-    # make a prediction
-    yhat = model.predict(stackedX)
-    return yhat
+# fit a stacked model
+def fit_stacked_model(model, inputX, inputy):
+    # prepare input data
+    X = [inputX for _ in range(len(model.input))]
+    # encode output data
+    print(inputy.shape)
+    inputy_enc = to_categorical(inputy, 3)
+    print(inputy_enc.shape)
+    # fit model
+    model.fit(X, inputy, epochs=100, verbose=0)
+
+
+# make a prediction with a stacked model
+def predict_stacked_model(model, inputX):
+    # prepare input data
+    X = [inputX for _ in range(len(model.input))]
+    # make prediction
+    return model.predict(X, verbose=0)
 
 
 data_path = 'D:/CK+48'
@@ -147,11 +170,22 @@ Y = to_categorical(labels, num_classes)
 
 x, y = shuffle(img_data, Y, random_state=2)
 
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=2)
+x_test = x_test
+
+data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
+data_generator_no_aug = ImageDataGenerator()
+
+train_generator = data_generator_woth_aug.flow(x_train, y_train)
+validation_generator = data_generator_woth_aug.flow(x_test, y_test)
+
+'''
 # split into train and test
 n_train = 100
 trainX, testX = x[:n_train, :], x[n_train:, :]
 trainy, testy = y[:n_train], y[n_train:]
 print(trainX.shape, testX.shape)
+'''
 
 '''
 # define model
@@ -173,20 +207,36 @@ n_members = 5
 members = load_all_models(n_members)
 print('Loaded %d models' % len(members))
 
-# evaluate standalone models on test dataset
-for model in members:
-    # testy_enc = to_categorical(testy)
-    _, acc = model.evaluate(testX, testy, verbose=0)
-    print('Model Accuracy: %.3f' % acc)
+# define ensemble model
+stacked_model = define_stacked_model(members)
 
-# fit stacked model using the ensemble
-model = fit_stacked_model(members, testX, testy)
-# evaluate model on test set
-yhat = stacked_prediction(members, model, testX)
-acc = accuracy_score(testy, yhat)
+# fit stacked model on test dataset
+fit_stacked_model(stacked_model, x_test, y_test)
+
+stacked_model.summary()
+
+# make predictions and evaluate
+yhat = predict_stacked_model(stacked_model, x_test)
+yhat = argmax(yhat, axis=1)
+testy_arg = argmax(y_test, axis=1)
+acc = accuracy_score(testy_arg, yhat)
+
 print('Stacked Test Accuracy: %.3f' % acc)
-# fit model
-# history = model.fit(trainX, trainy, validation_data=(testX, testy), epochs=100, verbose=0)
+
+stacked_model.save("stackedModel")
+
+# evaluate the model
+'''
+_, train_acc = stacked_model.evaluate(x_train, y_train, verbose=0)
+_, test_acc = stacked_model.evaluate(x_test, y_test, verbose=0)
+print('Train: %.3f, Test: %.3f' % (train_acc, test_acc))
+'''
+
+# print('Stacked Test Accuracy: %.3f' % acc)
+# evaluate the model
+#_, train_acc = stacked_model.evaluate(trainX, trainy, verbose=0)
+#_, test_acc = stacked_model.evaluate(trainX, trainy, verbose=0)
+#print('Train: %.3f, Test: %.3f' % (train_acc, test_acc))
 
 '''
 # evaluate the model

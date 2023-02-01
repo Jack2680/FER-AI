@@ -7,6 +7,7 @@ import glob
 
 import numpy as np
 from numpy import array
+from skimage.color import rgb2gray
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from numpy import asarray
@@ -192,6 +193,8 @@ print(classes)
 '''
 
 model_custom = keras.models.load_model('EN_model')
+# model_custom = keras.models.load_model('stackedModel')
+
 names = ['anger', 'contempt', 'disgust', 'fear', 'happy', 'sadness', 'surprise']
 
 while True:
@@ -233,10 +236,10 @@ while True:
     # for face in face_data:
     if len(face_data) != 0:
         prediction = model_custom.predict(face_data[:count])
-        # print("prediction:", prediction)
+        print("prediction:", prediction)
         classes = np.argmax(prediction, axis=1)
         print(names[classes[0]])
-        # print(classes)
+        print(classes)
 
     removingfiles = glob.glob('D:/PythonProgram/pythonProject/pythonProject/opencv_frame.png')
     for i in removingfiles:
