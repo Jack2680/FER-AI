@@ -72,7 +72,6 @@ while True:
     img_name = "opencv_frame.png"
     cv2.imwrite(img_name, frame)  # has to save the photo to use it
 
-    sleep(5)
     # image = face_recognition.load_image_file("opencv_frame_{}.png".format(img_counter))
     image = face_recognition.load_image_file("opencv_frame.png")
     face_locations = face_recognition.face_locations(image)

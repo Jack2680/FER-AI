@@ -115,7 +115,7 @@ def fit_stacked_model(model, inputX, inputy):
     inputy_enc = to_categorical(inputy, 3)
     print(inputy_enc.shape)
     # fit model
-    model.fit(X, inputy, epochs=100, verbose=0)
+    model.fit(X, inputy, epochs=1, verbose=0)
 
 
 # make a prediction with a stacked model
@@ -223,7 +223,7 @@ acc = accuracy_score(testy_arg, yhat)
 
 print('Stacked Test Accuracy: %.3f' % acc)
 
-stacked_model.save("stackedModel")
+# stacked_model.save("stackedModel")
 
 # evaluate the model
 '''

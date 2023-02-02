@@ -2,18 +2,13 @@
 import os
 import keras
 import face_recognition
-import numpy
-from PIL import Image
-from matplotlib import pyplot
-from skimage.feature._cascade import rgb2gray
-from sklearn.ensemble import AdaBoostClassifier
 
 import numpy as np
 from numpy import array, std, mean
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
-from numpy import asarray
+from skimage import color
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -41,27 +36,6 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import RandomForestClassifier
 
 
-# get a list of models to evaluate
-def get_models():
-    models = dict()
-    # explore depths from 1 to 10
-    for i in range(1, 11):
-        # define base model
-        base = DecisionTreeClassifier(max_depth=i)
-        # define ensemble model
-        models[str(i)] = AdaBoostClassifier(base_estimator=base)
-    return models
-
-
-# evaluate a given model using cross-validation
-def evaluate_model(model, X, y):
-    # define the evaluation procedure
-    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
-    # evaluate the model and collect the results
-    scores = cross_val_score(model, X, y, scoring='accuracy', cv=cv, n_jobs=-1)
-    return scores
-
-
 iris = datasets.load_iris()
 A = iris.data
 B = iris.target
@@ -77,7 +51,8 @@ for dataset in data_dir_list:
     for img in img_list:
         input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
         input_img_resize = cv2.resize(input_img, (48, 48))
-        input_flat = input_img_resize.flatten()
+        imgGray = color.rgb2gray(input_img_resize)
+        input_flat = imgGray.flatten()
         img_data_list.append(input_flat)
 
 img_data = np.array(img_data_list)

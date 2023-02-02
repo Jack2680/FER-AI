@@ -197,6 +197,10 @@ model_custom = keras.models.load_model('EN_model')
 
 names = ['anger', 'contempt', 'disgust', 'fear', 'happy', 'sadness', 'surprise']
 
+known_face_encodings = []
+known_face_names = []
+studentCount = 1
+
 while True:
     ret, frame = cam.read()
     if not ret:
@@ -211,15 +215,36 @@ while True:
         break
 
     # sleep(0.5)  # this seems to work
+    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+    rgb_small_frame = small_frame[:, :, ::-1]
     img_name = "opencv_frame.png"
-    cv2.imwrite(img_name, frame)  # has to save the photo to use it
+    cv2.imwrite(img_name, rgb_small_frame)  # has to save the photo to use it
 
     # image = face_recognition.load_image_file("opencv_frame_{}.png".format(img_counter))
     image = face_recognition.load_image_file("opencv_frame.png")
     face_locations = face_recognition.face_locations(image)
+    # face_encodings = face_recognition.face_encodings(image, face_locations)
 
+    student = "Student{0}"
+    '''
+    for face_encoding in face_encodings:
+        matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+        name = "Unknown"
+        print(matches)
+
+        if True in matches:
+            first_match_index = matches.index(True)
+            name = known_face_names[first_match_index]
+        else:
+            name = student.format(studentCount)
+            studentCount += studentCount + 1
+            known_face_names.append(name)
+            known_face_encodings.append(face_encoding)
+    '''
     face_list = []
     count = 0
+    # student = "Student{0}"
+
     for face_location in face_locations:
         top, right, bottom, left = face_location
 
@@ -228,6 +253,20 @@ while True:
         face_resize = cv2.resize(face_image, (48, 48))
         face_list.append(face_resize)
         count = count + 1
+
+        # face_locations_en = face_recognition.face_locations(face_image)
+        face_encodings = face_recognition.face_encodings(face_image)
+        # only works when in for loop cant figure out why
+        for face_encoding in face_encodings:
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+            name = "Unkown"
+            if True in matches:
+                name = known_face_names[matches.index(True)]
+            else:
+                name = student.format(studentCount)
+                studentCount += studentCount + 1
+                known_face_names.append(name)
+                known_face_encodings.append(face_encoding)
 
     face_data = np.array(face_list)
     face_data = face_data.astype('float32')
@@ -238,7 +277,7 @@ while True:
         prediction = model_custom.predict(face_data[:count])
         print("prediction:", prediction)
         classes = np.argmax(prediction, axis=1)
-        print(names[classes[0]])
+        print(known_face_names[:count], names[classes[0]])
         print(classes)
 
     removingfiles = glob.glob('D:/PythonProgram/pythonProject/pythonProject/opencv_frame.png')
