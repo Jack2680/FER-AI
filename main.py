@@ -75,7 +75,6 @@ def create_model():
 
     return model
 
-
 data_path = 'D:/CK+48'
 data_dir_list = os.listdir(data_path)
 
@@ -192,6 +191,23 @@ print(names[classes[0]])
 print(classes)
 '''
 
+
+def diction_output(output):
+    for x in output:
+        print(x)
+        em_list = output[x]
+        size = len(em_list)
+        d = {}
+        for word in em_list:
+            if word in d:
+                d[word] = d[word] + 1
+            else:
+                d[word] = 1
+
+        for key in list(d.keys()):
+            print(key, ":", d[key]/size * 100)
+
+
 model_custom = keras.models.load_model('EN_model')
 # model_custom = keras.models.load_model('stackedModel')
 
@@ -200,6 +216,7 @@ names = ['anger', 'contempt', 'disgust', 'fear', 'happy', 'sadness', 'surprise']
 known_face_encodings = []
 known_face_names = []
 studentCount = 1
+student_dict = {}
 
 while True:
     ret, frame = cam.read()
@@ -211,6 +228,8 @@ while True:
     k = cv2.waitKey(1)
     if k % 256 == 27:
         # ESC pressed
+        # print(student_dict)
+        diction_output(student_dict)
         print("Escape hit, closing...")
         break
 
@@ -241,11 +260,11 @@ while True:
             known_face_names.append(name)
             known_face_encodings.append(face_encoding)
     '''
-    face_list = []
     count = 0
     # student = "Student{0}"
 
     for face_location in face_locations:
+        face_list = []
         top, right, bottom, left = face_location
 
         # You can access the actual face itself like this:
@@ -257,9 +276,9 @@ while True:
         # face_locations_en = face_recognition.face_locations(face_image)
         face_encodings = face_recognition.face_encodings(face_image)
         # only works when in for loop cant figure out why
+        name = "Unkown"
         for face_encoding in face_encodings:
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-            name = "Unkown"
             if True in matches:
                 name = known_face_names[matches.index(True)]
             else:
@@ -267,22 +286,25 @@ while True:
                 studentCount += studentCount + 1
                 known_face_names.append(name)
                 known_face_encodings.append(face_encoding)
+                student_dict[name] = ["a"]
 
-    face_data = np.array(face_list)
-    face_data = face_data.astype('float32')
-    face_data = face_data / 255
+        face_data = np.array(face_list)
+        face_data = face_data.astype('float32')
+        face_data = face_data / 255
 
-    # for face in face_data:
-    if len(face_data) != 0:
-        prediction = model_custom.predict(face_data[:count])
-        print("prediction:", prediction)
-        classes = np.argmax(prediction, axis=1)
-        print(known_face_names[:count], names[classes[0]])
-        print(classes)
+        # for face in face_data:
+        if len(face_data) != 0:
+            prediction = model_custom.predict(face_data[:1])
+            print("prediction:", prediction)
+            classes = np.argmax(prediction, axis=1)
+            print(name, names[classes[0]])
+            print(classes)
+            if name != "Unkown":
+                student_dict[name].append(names[classes[0]])  # creating dictionary to track individual student emotions
 
-    removingfiles = glob.glob('D:/PythonProgram/pythonProject/pythonProject/opencv_frame.png')
-    for i in removingfiles:
-        os.remove(i)
+        removingfiles = glob.glob('D:/PythonProgram/pythonProject/pythonProject/opencv_frame.png')
+        for i in removingfiles:
+            os.remove(i)
 
 cam.release()
 
