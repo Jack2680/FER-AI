@@ -24,8 +24,9 @@ from keras.models import model_from_json
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import *
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import cv2
+import cv2 as cv
 from sklearn import datasets
+import argparse
 import pickle
 from sklearn import metrics
 
@@ -40,6 +41,33 @@ iris = datasets.load_iris()
 A = iris.data
 B = iris.target
 
+# haar feature code
+parser = argparse.ArgumentParser(description='Code for Cascade Classifier tutorial.')
+parser.add_argument('--face_cascade', help='Path to face cascade.', default='D:/haarcascade_frontalface_alt.xml')
+parser.add_argument('--eyes_cascade', help='Path to eyes cascade.', default='D:/haarcascade_eye_tree_eyeglasses.xml')
+parser.add_argument('--mouth_cascade', default='D:/mouth.xml')
+parser.add_argument('--camera', help='Camera divide number.', type=int, default=0)
+args = parser.parse_args()
+
+face_cascade_name = args.face_cascade
+eyes_cascade_name = args.eyes_cascade
+mouth_cascade_name = args.mouth_cascade
+face_cascade = cv.CascadeClassifier()
+eyes_cascade = cv.CascadeClassifier()
+mouth_cascade = cv.CascadeClassifier()
+
+#-- 1. Load the cascades
+if not face_cascade.load(cv.samples.findFile(face_cascade_name)):
+    print('--(!)Error loading face cascade')
+    exit(0)
+if not eyes_cascade.load(cv.samples.findFile(eyes_cascade_name)):
+    print('--(!)Error loading eyes cascade')
+    exit(0)
+if not mouth_cascade.load(cv.samples.findFile(mouth_cascade_name)):
+    print('Error loading mouth cascade')
+    exit(0)
+
+
 data_path = 'D:/CK+48'
 data_dir_list = os.listdir(data_path)
 
@@ -49,8 +77,8 @@ for dataset in data_dir_list:
     img_list = os.listdir(data_path + '/' + dataset)
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
-        input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv2.resize(input_img, (48, 48))
+        input_img = cv.imread(data_path + '/' + dataset + '/' + img)
+        input_img_resize = cv.resize(input_img, (48, 48))
         imgGray = color.rgb2gray(input_img_resize)
         input_flat = imgGray.flatten()
         img_data_list.append(input_flat)
@@ -100,6 +128,7 @@ print(y_train.shape)  # has 2 features need 1
 
 # trainX = x_train[0].flatten(order='K')
 # trainY = y_train.flatten()
+
 '''
 
 print(A.shape)
@@ -125,8 +154,8 @@ abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(
 abc.fit(x_train, y_train)
 
 # save the model to disk
-filename = 'Ada_model.sav'
-pickle.dump(abc, open(filename, 'wb'))
+#filename = 'Ada_model.sav'
+#pickle.dump(abc, open(filename, 'wb'))
 
 score_seen = abc.score(x_train, y_train)
 score_unseen = abc.score(x_test, y_test)

@@ -2,8 +2,9 @@ import sys
 from time import time
 
 import os
-import cv2
+import cv2 as cv
 import numpy as np
+import argparse
 import matplotlib.pyplot as plt
 import skimage.data
 
@@ -29,8 +30,8 @@ for dataset in data_dir_list:
     img_list = os.listdir(data_path + '/' + dataset)
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
-        input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv2.resize(input_img, (48, 48))
+        input_img = cv.imread(data_path + '/' + dataset + '/' + img)
+        input_img_resize = cv.resize(input_img, (48, 48))
 
         img_data_list.append(input_img_resize)
 
@@ -39,6 +40,75 @@ img_data = img_data.astype('float32')
 img_data = img_data / 255
 
 
+def detectAndDisplay(frame):
+    frame_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    frame_gray = cv.equalizeHist(frame_gray)
+    #-- Detect faces
+    print("Before", frame_gray)
+    faces = face_cascade.detectMultiScale(frame_gray) # use this?
+    print("After", faces)
+    for (x,y,w,h) in faces:
+        center = (x + w//2, y + h//2)
+        frame = cv.ellipse(frame, center, (w//2, h//2), 0, 0, 360, (255, 0, 255), 4)
+        faceROI = frame_gray[y:y+h,x:x+w]
+        #-- In each face, detect eyes
+        eyes = eyes_cascade.detectMultiScale(faceROI)
+        for (x2,y2,w2,h2) in eyes:
+            eye_center = (x + x2 + w2//2, y + y2 + h2//2)
+            radius = int(round((w2 + h2)*0.25))
+            frame = cv.circle(frame, eye_center, radius, (255, 0, 0 ), 4)
+        mouth = mouth_cascade.detectMultiScale(faceROI)
+        for (x2, y2, w2, h2) in mouth:
+            mouth_center = (x + x2 + w2//2, y + y2 + h2//2)
+            radius = int(round((w2 + h2)*0.25))
+            frame = cv.circle(frame, mouth_center, radius, (255, 0, 0), 4)
+    cv.imshow('Capture - Face detection', frame)
+
+parser = argparse.ArgumentParser(description='Code for Cascade Classifier tutorial.')
+parser.add_argument('--face_cascade', help='Path to face cascade.', default='D:/haarcascade_frontalface_alt.xml')
+parser.add_argument('--eyes_cascade', help='Path to eyes cascade.', default='D:/haarcascade_eye_tree_eyeglasses.xml')
+parser.add_argument('--mouth_cascade', default='D:/mouth.xml')
+parser.add_argument('--camera', help='Camera divide number.', type=int, default=0)
+args = parser.parse_args()
+
+face_cascade_name = args.face_cascade
+eyes_cascade_name = args.eyes_cascade
+mouth_cascade_name = args.mouth_cascade
+face_cascade = cv.CascadeClassifier()
+eyes_cascade = cv.CascadeClassifier()
+mouth_cascade = cv.CascadeClassifier()
+
+#-- 1. Load the cascades
+if not face_cascade.load(cv.samples.findFile(face_cascade_name)):
+    print('--(!)Error loading face cascade')
+    exit(0)
+if not eyes_cascade.load(cv.samples.findFile(eyes_cascade_name)):
+    print('--(!)Error loading eyes cascade')
+    exit(0)
+if not mouth_cascade.load(cv.samples.findFile(mouth_cascade_name)):
+    print('Error loading mouth cascade')
+    exit(0)
+camera_device = args.camera
+#-- 2. Read the video stream
+cap = cv.VideoCapture(camera_device)
+if not cap.isOpened:
+    print('--(!)Error opening video capture')
+    exit(0)
+
+
+while True:
+    ret, frame = cap.read()
+    if frame is None:
+        print('--(!) No captured frame -- Break!')
+        break
+    detectAndDisplay(frame)
+    if cv.waitKey(10) == 27:
+        break
+
+
+
+
+'''
 def extract_feature_image(img, feature_type, feature_coord=None):
     """Extract the haar feature for the current image"""
     ii = integral_image(img)
@@ -140,4 +210,4 @@ summary = ((f'Computing the full feature set took '
 
 print(summary)
 plt.show()
-
+'''
