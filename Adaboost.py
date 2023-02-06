@@ -78,7 +78,7 @@ for dataset in data_dir_list:
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
         input_img = cv.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv.resize(input_img, (48, 48))
+        input_img_resize = cv.resize(input_img, (200, 200))
         imgGray = color.rgb2gray(input_img_resize)
         input_flat = imgGray.flatten()
         img_data_list.append(input_flat)
@@ -154,8 +154,8 @@ abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(
 abc.fit(x_train, y_train)
 
 # save the model to disk
-#filename = 'Ada_model.sav'
-#pickle.dump(abc, open(filename, 'wb'))
+filename = 'Ada_model.sav'
+pickle.dump(abc, open(filename, 'wb'))
 
 score_seen = abc.score(x_train, y_train)
 score_unseen = abc.score(x_test, y_test)

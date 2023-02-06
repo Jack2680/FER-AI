@@ -18,6 +18,9 @@ from sklearn.metrics import accuracy_score
 from sklearn.tree import DecisionTreeClassifier
 
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from skimage import color
+import cv2 as cv
 import numpy as np
 import pandas as pd
 from glob import glob
@@ -30,6 +33,18 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.model_selection import GridSearchCV
+
+
+img = cv.imread('D:/CK+48/sadness/S080_005_00000011.png')
+input_img_resize = cv.resize(img, (100, 100))
+imgGray = color.rgb2gray(input_img_resize)
+print(input_img_resize.shape)
+print(imgGray.shape)
+imgplot = plt.imshow(imgGray)
+plt.show()
+
+# input_img_resize = cv.resize(input_img, (25, 25))
+# imgGray = color.rgb2gray(input_img_resize)
 
 '''
 data_path = 'D:/CK+48'
@@ -88,7 +103,7 @@ pd.DataFrame(regionprops_table(label_im, gray_face,
                                properties=properties)).head(10)
 '''
 
-
+'''
 def get_properties():
     data_path = 'D:/CK+48'
     data_dir_list = os.listdir(data_path)
@@ -166,6 +181,7 @@ def getLabel(id):
     return ['anger', 'contempt', 'disgust', 'fear', 'happy', 'sadness', 'surprise'][id]
 '''
 '''
+
 Y = np_utils.to_categorical(labels, num_classes)
 
 x, y = shuffle(df, Y, random_state=2)
@@ -190,7 +206,7 @@ y_pred_RF= RF.predict(x_test)
 print("Accuracy against seen data: ", RF.score(x_train, y_train))
 print("Accuracy against unseen data", RF.score(x_test, y_test))
 
-
+'''
 '''
 data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
 data_generator_no_aug = ImageDataGenerator()
