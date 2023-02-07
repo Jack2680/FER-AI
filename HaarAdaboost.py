@@ -4,6 +4,7 @@ from time import time
 import os
 import cv2 as cv
 import numpy as np
+import pickle
 import argparse
 import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -38,7 +39,7 @@ for dataset in data_dir_list:
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
         input_img = mpimg.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv.resize(input_img, (25, 25))
+        input_img_resize = cv.resize(input_img, (48, 48))
         img_data_list.append(input_img_resize)
 
 img_data = np.array(img_data_list)
@@ -46,9 +47,10 @@ img_data = img_data.astype('float32')
 
 num_classes = 7
 
-num_of_samples = img_data.shape[0]
+num_of_samples = img_data.shape[0] * 5
 labels = np.ones((num_of_samples,), dtype='int64')
 
+'''
 labels[0:134] = 0
 labels[135:188] = 1
 labels[189:365] = 2
@@ -56,6 +58,16 @@ labels[366:440] = 3
 labels[441:647] = 4
 labels[648:731] = 5
 labels[732:980] = 6
+'''
+# multiplying labels by 5 for all haar features.
+
+labels[0:670] = 0
+labels[671:940] = 1
+labels[941:1825] = 2
+labels[1826:2200] = 3
+labels[2201:3235] = 4
+labels[3236:3655] = 5
+labels[3656:4900] = 6
 
 print(img_data.shape)
 '''
@@ -176,7 +188,7 @@ time_full_train = time() - t_start
 auc_full_features = roc_auc_score(y_test, clf.predict_proba(X_test)[:, 1])
 
 # Sort features in order of importance and plot the six most significant
-idx_sorted = np.argsort(clf.feature_importances_)[::-1]
+idx_sorted = np.argsort(clf.feature_importances_)[::-1]  # if i could pickle this would be good
 
 '''
 fig, axes = plt.subplots(3, 2)
@@ -197,14 +209,18 @@ haar_data_list = []
 print(img_data.shape)
 
 for img in img_data:
-    img = draw_haar_like_feature(img, 0, 0,
-                                 img_data.shape[2],
-                                 img_data.shape[1],
-                                 [feature_coord[idx_sorted[0]]])
-    haar_flatten = img.flatten()
-    haar_data_list.append(haar_flatten)
+    for idx in range(5):
+        applied_img = draw_haar_like_feature(img, 0, 0,
+                                             img_data.shape[2],
+                                             img_data.shape[1],
+                                             [feature_coord[idx_sorted[idx]]])
+        haar_flatten = applied_img.flatten()
+        haar_data_list.append(haar_flatten)
 
-# plt.imshow(haar_data_list[0])
+# plt.imshow(haar_data_list[104])
+
+haar_data = np.array(haar_data_list)
+print(haar_data.shape)
 
 a, b = shuffle(haar_data_list, labels, random_state=2)
 
@@ -225,7 +241,11 @@ score_unseen = abc.score(a_test, b_test)
 print("Score seen data:", score_seen)
 print("Score unseen data:", score_unseen)
 
+# save the model to disk
+filename = 'Ada_model.sav'
+pickle.dump(abc, open(filename, 'wb'))
 
+'''
 cdf_feature_importances = np.cumsum(clf.feature_importances_[idx_sorted])
 cdf_feature_importances /= cdf_feature_importances[-1]  # divide by max value
 sig_feature_count = np.count_nonzero(cdf_feature_importances < 0.7)
@@ -251,7 +271,7 @@ time_subs_feature_comp = time() - t_start
 
 # y = np.array([1] * 25 + [0] * 25)
 y = np.array([1] * 490 + [0] * 490)
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=735,
+X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=30,
                                                     random_state=0,
                                                     stratify=y)
 
@@ -271,3 +291,4 @@ summary = ((f'Computing the full feature set took '
 
 print(summary)
 plt.show()
+'''
