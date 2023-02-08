@@ -31,6 +31,10 @@ from skimage.feature import draw_haar_like_feature
 
 data_path = 'D:/CK+48'
 data_dir_list = os.listdir(data_path)
+test_img_anger = mpimg.imread('D:/CK+48/anger/S010_004_00000017.png')
+test_img_contempt = mpimg.imread('D:/CK+48/contempt/S138_008_00000007.png')
+test_img_disgust = mpimg.imread('D:/CK+48/disgust/S005_001_00000009.png')
+test_img_happy = mpimg.imread('D:/CK+48/happy/S010_006_00000013.png')
 
 img_data_list = []
 
@@ -39,7 +43,7 @@ for dataset in data_dir_list:
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
         input_img = mpimg.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv.resize(input_img, (48, 48))
+        input_img_resize = cv.resize(input_img, (25, 25))
         img_data_list.append(input_img_resize)
 
 img_data = np.array(img_data_list)
@@ -47,27 +51,28 @@ img_data = img_data.astype('float32')
 
 num_classes = 7
 
-num_of_samples = img_data.shape[0] * 5
-labels = np.ones((num_of_samples,), dtype='int64')
+num_of_samples_haar = img_data.shape[0]
+num_of_samples_ada = img_data.shape[0] * 5
+haar_labels = np.ones((num_of_samples_haar,), dtype='int64')
+ada_labels = np.ones((num_of_samples_ada,), dtype='int64')
 
-'''
-labels[0:134] = 0
-labels[135:188] = 1
-labels[189:365] = 2
-labels[366:440] = 3
-labels[441:647] = 4
-labels[648:731] = 5
-labels[732:980] = 6
-'''
+haar_labels[0:134] = 0
+haar_labels[135:188] = 1
+haar_labels[189:365] = 2
+haar_labels[366:440] = 3
+haar_labels[441:647] = 4
+haar_labels[648:731] = 5
+haar_labels[732:980] = 6
+
 # multiplying labels by 5 for all haar features.
 
-labels[0:670] = 0
-labels[671:940] = 1
-labels[941:1825] = 2
-labels[1826:2200] = 3
-labels[2201:3235] = 4
-labels[3236:3655] = 5
-labels[3656:4900] = 6
+ada_labels[0:670] = 0
+ada_labels[671:940] = 1
+ada_labels[941:1825] = 2
+ada_labels[1826:2200] = 3
+ada_labels[2201:3235] = 4
+ada_labels[3236:3655] = 5
+ada_labels[3656:4905] = 6
 
 print(img_data.shape)
 '''
@@ -151,7 +156,7 @@ def extract_feature_image(img, feature_type, feature_coord=None):
                              feature_coord=feature_coord)
 
 
-images = img_data[:980]  # look at what contains in this dataset
+images = img_data  # look at what contains in this dataset
 # images = img_data[:50]
 print(images.shape)
 
@@ -167,17 +172,19 @@ X = np.array(X.compute(scheduler='single-threaded'))
 time_full_feature_comp = time() - t_start
 
 # Label images (100 faces and 100 non-faces)
-y = np.array([1] * 490 + [0] * 490)
+# y = np.array([1] * 490 + [0] * 490)
 # y = np.array([1] * 25 + [0] * 25)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=735,
+X_train, X_test, y_train, y_test = train_test_split(X, haar_labels, train_size=735,
                                                     random_state=0,
-                                                    stratify=y)
+                                                    stratify=haar_labels)
 
 # Extract all possible features
 feature_coord, feature_type = \
     haar_like_feature_coord(width=images.shape[2], height=images.shape[1],
                             feature_type=feature_types)
+
+np.save('haar_feature_coords.npy', feature_coord)
 
 # Train a random forest classifier and assess its performance
 clf = RandomForestClassifier(n_estimators=1000, max_depth=None,
@@ -185,10 +192,10 @@ clf = RandomForestClassifier(n_estimators=1000, max_depth=None,
 t_start = time()
 clf.fit(X_train, y_train)
 time_full_train = time() - t_start
-auc_full_features = roc_auc_score(y_test, clf.predict_proba(X_test)[:, 1])
+# auc_full_features = roc_auc_score(y_test, clf.predict_proba(X_test)[:, 1])
 
 # Sort features in order of importance and plot the six most significant
-idx_sorted = np.argsort(clf.feature_importances_)[::-1]  # if i could pickle this would be good
+idx_sorted = np.argsort(clf.feature_importances_)[::-1]
 
 '''
 fig, axes = plt.subplots(3, 2)
@@ -205,15 +212,20 @@ for idx, ax in enumerate(axes.ravel()):
 _ = fig.suptitle('The most important features')
 '''
 
+# print(type(idx_sorted))
+np.save('haar_features.npy', idx_sorted)
+
 haar_data_list = []
 print(img_data.shape)
 
 for img in img_data:
+    # img_resize = cv.resize(img, (200, 200))
     for idx in range(5):
         applied_img = draw_haar_like_feature(img, 0, 0,
                                              img_data.shape[2],
                                              img_data.shape[1],
                                              [feature_coord[idx_sorted[idx]]])
+        print(applied_img.shape)
         haar_flatten = applied_img.flatten()
         haar_data_list.append(haar_flatten)
 
@@ -221,8 +233,12 @@ for img in img_data:
 
 haar_data = np.array(haar_data_list)
 print(haar_data.shape)
+haar_data = haar_data.astype('float32')
+haar_data = haar_data / 255
 
-a, b = shuffle(haar_data_list, labels, random_state=2)
+print(ada_labels.shape)
+
+a, b = shuffle(haar_data, ada_labels, random_state=2)
 
 a_train, a_test, b_train, b_test = train_test_split(a, b, test_size=0.4, random_state=2)
 a_test = a_test
@@ -230,8 +246,11 @@ a_test = a_test
 data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
 data_generator_no_aug = ImageDataGenerator()
 
-abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=100, learning_rate=0.01)
+abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=100,
+                         learning_rate=0.01)
 
+print(a_train.shape)
+print(b_train.shape)
 # Train Adaboost Classifer
 abc.fit(a_train, b_train)
 
@@ -244,6 +263,26 @@ print("Score unseen data:", score_unseen)
 # save the model to disk
 filename = 'Ada_model.sav'
 pickle.dump(abc, open(filename, 'wb'))
+
+test_faces_list = [test_img_anger, test_img_contempt, test_img_disgust, test_img_happy]
+for test_face in test_faces_list:
+    test_img_resize = cv.resize(test_face, (25, 25))
+    for idx in range(5):
+        test_list = []
+        test_img = draw_haar_like_feature(test_img_resize, 0, 0,
+                                          test_img_resize.shape[1],
+                                          test_img_resize.shape[0],
+                                          [feature_coord[idx_sorted[idx]]])
+        test_flat = test_img.flatten()
+        test_list.append(test_flat)
+
+        test_test = np.array(test_list)
+        test_test = test_test.astype('float32')
+        test_test = test_test / 255
+
+        if len(test_test) != 0:
+            prediction = abc.predict(test_test)
+            print("prediction:", prediction)
 
 '''
 cdf_feature_importances = np.cumsum(clf.feature_importances_[idx_sorted])
