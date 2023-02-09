@@ -66,9 +66,9 @@ while True:
     for face_location in face_locations:
         sum_emotion = []
         top, right, bottom, left = face_location
-
         # You can access the actual face itself like this:
         face_image = image[top:bottom, left:right]
+        plt.imshow(face_image)
         face_resize = cv2.resize(face_image, (25, 25))  # To change this to 48, 48 need to train Adaboost to be 48, 48
         faceGray = color.rgb2gray(face_resize)
         # Extract all possible features this takes to long so need to save as numpy
@@ -78,7 +78,7 @@ while True:
             applied_img = draw_haar_like_feature(faceGray, 0, 0,
                                                  faceGray.shape[1],
                                                  faceGray.shape[0],
-                                                 [feature_coord[idx_sorted[idx]]*10])
+                                                 [feature_coord[idx_sorted[idx]]])
             # plt.imshow(applied_img)
 
             face_flat = applied_img.flatten()
@@ -92,10 +92,9 @@ while True:
             if len(face_data) != 0:
                 prediction = Ada.predict(face_data)
                 sum_emotion.append(names[prediction[0]])
-                print("prediction:", prediction)
-                print(names[prediction[0]])
-        # print(sum_emotion)
-        # plt.show()
+                # print("prediction:", prediction)
+                # print(names[prediction[0]])
+        print(sum_emotion)
 
     removing_files = glob.glob('D:/PythonProgram/pythonProject/pythonProject/opencv_frame.png')
     for i in removing_files:

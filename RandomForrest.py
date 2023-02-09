@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from PIL._imaging import display
 from keras.utils import np_utils
+from skimage.feature import draw_haar_like_feature
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
@@ -34,7 +35,49 @@ from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.model_selection import GridSearchCV
 
+Ada = pickle.load(open('Ada_model.sav', 'rb'))
 
+idx_sorted = np.load('haar_features.npy')
+
+# save np.load
+np_load_old = np.load
+
+# modify the default parameters of np.load
+np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
+feature_coord = np.load('haar_feature_coords.npy')
+
+# restore np.load for future normal usage
+np.load = np_load_old
+
+test_img_anger = mpimg.imread('D:/CK+48/anger/S010_004_00000017.png')
+test_img_contempt = mpimg.imread('D:/CK+48/contempt/S138_008_00000007.png')
+test_img_disgust = mpimg.imread('D:/CK+48/disgust/S005_001_00000009.png')
+test_img_happy = mpimg.imread('D:/CK+48/happy/S010_006_00000013.png')
+
+test_faces_list = [test_img_anger, test_img_contempt, test_img_disgust, test_img_happy]
+for test_face in test_faces_list:
+    test_img_resize = cv.resize(test_face, (25, 25))
+    plt.imshow(test_img_resize)
+    plt.show()
+    for idx in range(5):
+        test_list = []
+        test_img = draw_haar_like_feature(test_img_resize, 0, 0,
+                                          test_img_resize.shape[1],
+                                          test_img_resize.shape[0],
+                                          [feature_coord[idx_sorted[idx]]])
+        test_flat = test_img.flatten()
+        test_list.append(test_flat)
+
+        test_test = np.array(test_list)
+        test_test = test_test.astype('float32')
+        test_test = test_test / 255
+
+        if len(test_test) != 0:
+            prediction = Ada.predict(test_test)
+            print("prediction:", prediction)
+
+
+'''
 img = cv.imread('D:/CK+48/sadness/S080_005_00000011.png')
 input_img_resize = cv.resize(img, (100, 100))
 imgGray = color.rgb2gray(input_img_resize)
@@ -45,7 +88,7 @@ plt.show()
 
 # input_img_resize = cv.resize(input_img, (25, 25))
 # imgGray = color.rgb2gray(input_img_resize)
-
+'''
 '''
 data_path = 'D:/CK+48'
 data_dir_list = os.listdir(data_path)
