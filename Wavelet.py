@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-
+from matplotlib import cm
 import pywt
 import pywt.data
 
@@ -22,11 +22,18 @@ from keras.layers import Activation
 from keras.layers.convolutional import Conv2D
 from keras.layers.convolutional import MaxPooling2D
 
+# combines numpy arrays to together into a 2x2
+def get_concat(img1, img2, img3, img4):
+
+    top = np.hstack((img1, img2))
+    bottom = np.hstack((img3, img4))
+    result = np.vstack((top, bottom))
+    return result
 
 def create_model():
     model = Sequential()
 
-    model.add(Conv2D(64, (3, 3), padding="same", input_shape=(26, 26, 1), activation='relu'))
+    model.add(Conv2D(64, (3, 3), padding="same", input_shape=(52, 52, 1), activation='relu'))
     model.add(Conv2D(64, (3, 3), padding="same", activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.5))
@@ -36,13 +43,11 @@ def create_model():
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.5))
 
-    '''
     model.add(Conv2D(256, (3, 3), activation='relu'))
     model.add(Conv2D(256, (3, 3), activation='relu'))
     model.add(Conv2D(256, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.5))
-    '''
 
     model.add(Flatten())
 
@@ -98,6 +103,7 @@ processed_data = []
 
 for img in img_data:
     # Load image
+    holder = []
 
     # Wavelet transform of image, and plot approximation and details
     titles = ['Approximation', ' Horizontal detail',
@@ -107,10 +113,12 @@ for img in img_data:
     #print(coeffs2)
     # processed_data.append(coeffs2)
     LL, (LH, HL, HH) = coeffs2
-    for i, a in enumerate([LL, LH, HL, HH]): # Dont think im getting values for HL and HH
-        #print("break")
-        #print(a)
-        processed_data.append(a)
+    for i, a in enumerate([LL, LH, HL, HH]):
+        # processed_data.append(a)
+        holder.append(a)
+
+    concat_img = get_concat(holder[0], holder[1], holder[2], holder[3])
+    processed_data.append(concat_img)
 
     '''
     LL, (LH, HL, HH) = coeffs2
@@ -136,21 +144,7 @@ pro_data = np.array(processed_data)
 # pro_data = pro_data / 255
 print(pro_data.shape)
 
-num_classes = 7
-
-num_of_samples = pro_data.shape[0]
-labels = np.ones((num_of_samples,), dtype='int64')
-
 '''
-labels[0:134] = 0
-labels[135:188] = 1
-labels[189:365] = 2
-labels[366:440] = 3
-labels[441:647] = 4
-labels[648:731] = 5
-labels[732:980] = 6
-'''
-
 labels[0:536] = 0
 labels[537:752] = 1
 labels[753:1460] = 2
@@ -158,6 +152,7 @@ labels[1461:1760] = 3
 labels[1761:2588] = 4
 labels[2589:2924] = 5
 labels[2925:3920] = 6
+'''
 
 #print("test")
 #print(labels[1024])
@@ -171,12 +166,14 @@ def getLabel(id):
 
 pro_data = pro_data.reshape(list(pro_data.shape) + [1])
 print(pro_data[0].shape)
+plt.imshow(pro_data[0])
+plt.show()
 
 Y = np_utils.to_categorical(labels, num_classes)
 
 x, y = shuffle(pro_data, Y, random_state=2)
 
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=2)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=2)
 x_test = x_test
 
 data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
