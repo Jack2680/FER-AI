@@ -1,10 +1,14 @@
 import sys
+import random
 from time import time
 
 import os
 import cv2 as cv
 import numpy as np
 import pickle
+from sklearn.externals import joblib
+from sklearn import metrics, ensemble
+from keras.callbacks import EarlyStopping
 import argparse
 import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -29,12 +33,16 @@ from skimage.feature import haar_like_feature
 from skimage.feature import haar_like_feature_coord
 from skimage.feature import draw_haar_like_feature
 
-data_path = 'D:/CK+48'
+# calculates precision for 1:100 dataset with 90 tp and 30 fp
+from sklearn.metrics import precision_score
+
+# data_path = 'D:/CK+48'
+data_path = 'D:/images/train'
 data_dir_list = os.listdir(data_path)
-test_img_anger = mpimg.imread('D:/CK+48/anger/S010_004_00000017.png')
-test_img_contempt = mpimg.imread('D:/CK+48/contempt/S138_008_00000007.png')
-test_img_disgust = mpimg.imread('D:/CK+48/disgust/S005_001_00000009.png')
-test_img_happy = mpimg.imread('D:/CK+48/happy/S010_006_00000013.png')
+# test_img_anger = mpimg.imread('D:/CK+48/anger/S010_004_00000017.png')
+# test_img_contempt = mpimg.imread('D:/CK+48/contempt/S138_008_00000007.png')
+# test_img_disgust = mpimg.imread('D:/CK+48/disgust/S005_001_00000009.png')
+# test_img_happy = mpimg.imread('D:/CK+48/happy/S010_006_00000013.png')
 
 img_data_list = []
 
@@ -52,10 +60,10 @@ img_data = img_data.astype('float32')
 num_classes = 7
 
 num_of_samples_haar = img_data.shape[0]
-num_of_samples_ada = img_data.shape[0] * 5
+# num_of_samples_ada = img_data.shape[0] * 5
 haar_labels = np.ones((num_of_samples_haar,), dtype='int64')
-ada_labels = np.ones((num_of_samples_ada,), dtype='int64')
-
+# ada_labels = np.ones((num_of_samples_ada,), dtype='int64')
+'''
 haar_labels[0:134] = 0
 haar_labels[135:188] = 1
 haar_labels[189:365] = 2
@@ -63,16 +71,27 @@ haar_labels[366:440] = 3
 haar_labels[441:647] = 4
 haar_labels[648:731] = 5
 haar_labels[732:980] = 6
+'''
+
+haar_labels[0:3992] = 0  # anger
+haar_labels[3993:4428] = 1  # disgust
+haar_labels[4429:8532] = 2  # fear
+haar_labels[8533:15696] = 3  # happy
+haar_labels[15697:20678] = 4  # neutral
+haar_labels[20679:25616] = 5  # sadness
+haar_labels[25617:28821] = 6  # suprise
 
 # multiplying labels by 5 for all haar features.
 
-ada_labels[0:670] = 0
-ada_labels[671:940] = 1
-ada_labels[941:1825] = 2
-ada_labels[1826:2200] = 3
-ada_labels[2201:3235] = 4
-ada_labels[3236:3655] = 5
-ada_labels[3656:4905] = 6
+'''
+ada_labels[0:19960] = 0
+ada_labels[19961:22140] = 1
+ada_labels[22141:42660] = 2
+ada_labels[42661:78480] = 3
+ada_labels[78481:103390] = 4
+ada_labels[103390:128080] = 5
+ada_labels[128081:144105] = 6
+'''
 
 print(img_data.shape)
 '''
@@ -156,7 +175,8 @@ def extract_feature_image(img, feature_type, feature_coord=None):
                              feature_coord=feature_coord)
 
 
-images = img_data  # look at what contains in this dataset
+mix_images, mix_labels = shuffle(img_data, haar_labels, random_state=2)
+images = mix_images[:980]  # look at what contains in this dataset
 # images = img_data[:50]
 print(images.shape)
 
@@ -175,9 +195,9 @@ time_full_feature_comp = time() - t_start
 # y = np.array([1] * 490 + [0] * 490)
 # y = np.array([1] * 25 + [0] * 25)
 
-X_train, X_test, y_train, y_test = train_test_split(X, haar_labels, train_size=735,
+X_train, X_test, y_train, y_test = train_test_split(X, mix_labels[:980], train_size=735,
                                                     random_state=0,
-                                                    stratify=haar_labels)
+                                                    stratify=mix_labels[:980])
 
 # Extract all possible features
 feature_coord, feature_type = \
@@ -218,6 +238,7 @@ np.save('haar_features.npy', idx_sorted)
 haar_data_list = []
 print(img_data.shape)
 
+'''
 for img in img_data:
     # img_resize = cv.resize(img, (200, 200))
     for idx in range(5):
@@ -229,6 +250,17 @@ for img in img_data:
         haar_flatten = applied_img.flatten()
         haar_data_list.append(haar_flatten)
 
+'''
+print("applying haar")
+for img in img_data:
+    applied_img = draw_haar_like_feature(img, 0, 0,
+                                         img_data.shape[2],
+                                         img_data.shape[1],
+                                         [feature_coord[idx_sorted[0]]])
+    # print(applied_img.shape)
+    haar_flatten = applied_img.flatten()
+    haar_data_list.append(haar_flatten)
+
 # plt.imshow(haar_data_list[104])
 
 haar_data = np.array(haar_data_list)
@@ -236,23 +268,27 @@ print(haar_data.shape)
 haar_data = haar_data.astype('float32')
 haar_data = haar_data / 255
 
-print(ada_labels.shape)
+# print(ada_labels.shape)
 
-a, b = shuffle(haar_data, ada_labels, random_state=2)
+a, b = shuffle(haar_data, haar_labels, random_state=2)
 
-a_train, a_test, b_train, b_test = train_test_split(a, b, test_size=0.4, random_state=2)
+a_train, a_test, b_train, b_test = train_test_split(a, b, test_size=0.2, random_state=2)
 a_test = a_test
 
 data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
 data_generator_no_aug = ImageDataGenerator()
 
-abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=100,
+abc = ensemble.AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=100,
                          learning_rate=0.01)
+
+# abc = ensemble.AdaBoostRegressor(n_estimators=100, learning_rate=0.01, random_state=96) # 0.04
+#abc = ensemble.AdaBoostRegressor(estimator=None, *, n_estimators=50, learning_rate=1.0, loss='linear', random_state=None, base_estimator='deprecated')
 
 print(a_train.shape)
 print(b_train.shape)
 # Train Adaboost Classifer
-abc.fit(a_train, b_train)
+print("fitting")
+abc.fit(a_train, b_train) #Run this to see if doesnt need to be removed
 
 score_seen = abc.score(a_train, b_train)
 score_unseen = abc.score(a_test, b_test)
@@ -262,8 +298,30 @@ print("Score unseen data:", score_unseen)
 
 # save the model to disk
 filename = 'Ada_model.sav'
-pickle.dump(abc, open(filename, 'wb'))
+joblib.dump(abc, filename)
 
+y_true = b_test # label
+y_pred = abc.predict(a_test)
+
+print(metrics.confusion_matrix(y_true, y_pred))
+# Print the precision and recall, among other metrics
+print(metrics.classification_report(y_true, y_pred, digits=3))
+
+'''
+act_pos1 = [1 for _ in range(100)]
+act_pos2 = [2 for _ in range(100)]
+act_neg = [0 for _ in range(10000)]
+y_true = act_pos1 + act_pos2 + act_neg
+
+pred_pos1 = [0 for _ in range(50)] + [1 for _ in range(50)]
+pred_pos2 = [0 for _ in range(1)] + [2 for _ in range(99)]
+pred_neg = [1 for _ in range(20)] + [2 for _ in range(51)] + [0 for _ in range(9929)]
+y_pred = pred_pos1 + pred_pos2 + pred_neg
+# calculate prediction
+precision = precision_score(y_true, y_pred, labels=[1,2], average='micro')
+print('Precision: %.3f' % precision)
+'''
+'''
 test_faces_list = [test_img_anger, test_img_contempt, test_img_disgust, test_img_happy]
 for test_face in test_faces_list:
     test_img_resize = cv.resize(test_face, (25, 25))
@@ -283,7 +341,7 @@ for test_face in test_faces_list:
         if len(test_test) != 0:
             prediction = abc.predict(test_test)
             print("prediction:", prediction)
-
+'''
 '''
 cdf_feature_importances = np.cumsum(clf.feature_importances_[idx_sorted])
 cdf_feature_importances /= cdf_feature_importances[-1]  # divide by max value

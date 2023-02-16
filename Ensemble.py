@@ -5,6 +5,7 @@ from keras.utils.vis_utils import plot_model
 from matplotlib import pyplot
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
+from sklearn import metrics
 
 import cv2
 import numpy as np
@@ -20,8 +21,10 @@ from keras.models import Model
 from keras.layers import Input
 from keras.layers import Dense
 from keras.layers.merge import concatenate
+from skimage import color
 from numpy import argmax
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import pywt.data
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -66,6 +69,15 @@ def fit_model(trainX, trainY):
 
     return model
 '''
+
+
+# combines numpy arrays to together into a 2x2
+def get_concat(img1, img2, img3, img4):
+    top = np.hstack((img1, img2))
+    bottom = np.hstack((img3, img4))
+    result = np.vstack((top, bottom))
+    return result
+
 
 # load models from file
 def load_all_models(n_models):
@@ -115,7 +127,7 @@ def fit_stacked_model(model, inputX, inputy):
     inputy_enc = to_categorical(inputy, 3)
     print(inputy_enc.shape)
     # fit model
-    model.fit(X, inputy, epochs=1, verbose=0)
+    model.fit(X, inputy, epochs=100, verbose=0)
 
 
 # make a prediction with a stacked model
@@ -137,13 +149,13 @@ for dataset in data_dir_list:
     for img in img_list:
         input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
         input_img_resize = cv2.resize(input_img, (48, 48))
-
-        img_data_list.append(input_img_resize)
+        imgGray = color.rgb2gray(input_img_resize)
+        img_data_list.append(imgGray)
 
 img_data = np.array(img_data_list)
-img_data = img_data.astype('float32')
-img_data = img_data / 255
-print(img_data.shape)
+# img_data = img_data.astype('float32')
+# img_data = img_data / 255
+# print(img_data.shape)
 
 num_classes = 7
 
@@ -158,6 +170,30 @@ labels[441:647] = 4
 labels[648:731] = 5
 labels[732:980] = 6
 
+processed_data = []
+
+for img in img_data:
+    # Load image
+    holder = []
+
+    # Wavelet transform of image, and plot approximation and details
+    titles = ['Approximation', ' Horizontal detail',
+              'Vertical detail', 'Diagonal detail']
+    coeffs2 = pywt.dwt2(img, 'bior1.3')
+    LL, (LH, HL, HH) = coeffs2
+    for i, a in enumerate([LL, LH, HL, HH]):
+        holder.append(a)
+
+    concat_img = get_concat(holder[0], holder[1], holder[2], holder[3])
+    concat_img = concat_img.astype('float32')
+    concat_img = concat_img * 255
+    backtorgb = cv2.cvtColor(concat_img, cv2.COLOR_GRAY2RGB)
+    processed_data.append(backtorgb)
+
+pro_data = np.array(processed_data)
+pro_data = pro_data.astype('float32')
+pro_data = pro_data / 255
+
 names = ['anger', 'contempt', 'disgust', 'fear', 'happy', 'sadness', 'surprise']
 
 
@@ -168,7 +204,7 @@ def getLabel(id):
 # one hot encode output variable
 Y = to_categorical(labels, num_classes)
 
-x, y = shuffle(img_data, Y, random_state=2)
+x, y = shuffle(pro_data, Y, random_state=2)
 
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=2)
 x_test = x_test
@@ -215,6 +251,18 @@ fit_stacked_model(stacked_model, x_test, y_test)
 
 stacked_model.summary()
 
+stacked_model.save("stackedModel")
+
+y_true = y_test # label
+y_true = np.argmax(y_true, axis=1)
+y_pred = predict_stacked_model(stacked_model, x_test)
+y_pred = np.argmax(y_pred, axis=1)
+
+print(metrics.confusion_matrix(y_true, y_pred))
+# Print the precision and recall, among other metrics
+print(metrics.classification_report(y_true, y_pred, digits=3))
+
+'''
 # make predictions and evaluate
 yhat = predict_stacked_model(stacked_model, x_test)
 yhat = argmax(yhat, axis=1)
@@ -222,8 +270,7 @@ testy_arg = argmax(y_test, axis=1)
 acc = accuracy_score(testy_arg, yhat)
 
 print('Stacked Test Accuracy: %.3f' % acc)
-
-# stacked_model.save("stackedModel")
+'''
 
 # evaluate the model
 '''

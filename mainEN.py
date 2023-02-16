@@ -6,6 +6,8 @@ from PIL import Image
 import glob
 
 import numpy as np
+from skimage import color
+import pywt.data
 from numpy import array
 from skimage.color import rgb2gray
 from sklearn.utils import shuffle
@@ -35,6 +37,14 @@ import matplotlib.image as mpimg
 from pylab import rcParams
 
 
+# combines numpy arrays to together into a 2x2
+def get_concat(img1, img2, img3, img4):
+    top_row = np.hstack((img1, img2))
+    bottom_row = np.hstack((img3, img4))
+    result = np.vstack((top_row, bottom_row))
+    return result
+
+
 def predict_stacked_model(model, inputX):
     # prepare input data
     X = [inputX for _ in range(len(model.input))]
@@ -51,7 +61,6 @@ cv2.namedWindow("test")
 img_counter = 0
 
 model_custom = keras.models.load_model('stackedModel')
-# model_custom = keras.models.load_model('stackedModel')
 
 names = ['anger', 'contempt', 'disgust', 'fear', 'happy', 'sadness', 'surprise']
 
@@ -80,11 +89,27 @@ while True:
     count = 0
     for face_location in face_locations:
         top, right, bottom, left = face_location
+        holder = []
 
         # You can access the actual face itself like this:
         face_image = image[top:bottom, left:right]
         face_resize = cv2.resize(face_image, (48, 48))
-        face_list.append(face_resize)
+        faceGray = color.rgb2gray(face_resize)
+
+        titles = ['Approximation', ' Horizontal detail',
+                  'Vertical detail', 'Diagonal detail']
+        coeffs2 = pywt.dwt2(faceGray, 'bior1.3')
+        LL, (LH, HL, HH) = coeffs2
+        for i, a in enumerate([LL, LH, HL, HH]):
+            # processed_data.append(a)
+            holder.append(a)
+
+        concat_img = get_concat(holder[0], holder[1], holder[2], holder[3])
+        concat_img = concat_img.astype('float32')
+        concat_img = concat_img * 255
+        backtorgb = cv2.cvtColor(concat_img, cv2.COLOR_GRAY2RGB)
+
+        face_list.append(backtorgb)
         count = count + 1
 
     face_data = np.array(face_list)

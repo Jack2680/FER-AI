@@ -1,6 +1,5 @@
 import os
-
-import cv2
+import face_recognition
 import numpy as np
 import pandas as pd
 from PIL._imaging import display
@@ -9,6 +8,7 @@ from skimage.feature import draw_haar_like_feature
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
+from tensorflow import keras
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 import pickle
@@ -35,6 +35,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.model_selection import GridSearchCV
 
+'''
 Ada = pickle.load(open('Ada_model.sav', 'rb'))
 
 idx_sorted = np.load('haar_features.npy')
@@ -48,23 +49,65 @@ feature_coord = np.load('haar_feature_coords.npy')
 
 # restore np.load for future normal usage
 np.load = np_load_old
+'''
 
-test_img_anger = mpimg.imread('D:/CK+48/anger/S010_004_00000017.png')
-test_img_contempt = mpimg.imread('D:/CK+48/contempt/S138_008_00000007.png')
-test_img_disgust = mpimg.imread('D:/CK+48/disgust/S005_001_00000009.png')
-test_img_happy = mpimg.imread('D:/CK+48/happy/S010_006_00000013.png')
+def predict_stacked_model(model, inputX):
+    # prepare input data
+    X = [inputX for _ in range(len(model.input))]
+    # make prediction
+    return model.predict(X, verbose=0)
 
-test_faces_list = [test_img_anger, test_img_contempt, test_img_disgust, test_img_happy]
+
+model_custom = keras.models.load_model('stackedModel')
+
+# test_img_anger = mpimg.imread('D:/CK+48/anger/S010_004_00000017.png')
+# test_img_contempt = mpimg.imread('D:/CK+48/contempt/S138_008_00000007.png')
+# test_img_disgust = mpimg.imread('D:/CK+48/disgust/S005_001_00000009.png')
+# test_img_happy = mpimg.imread('D:/CK+48/happy/S010_006_00000013.png')
+
+# me_anger = cv.imread('D:/IMG_9884.jpg')
+# me_contempt = cv.imread('D:/IMG_9885.jpg')
+# me_happy = cv.imread('D:/IMG_9886.jpg')
+# me_suprise = cv.imread('D:/IMG_9887.jpg')
+
+#img_name = "opencv_frame.png"
+#cv.imwrite(img_name, me_anger)  # has to save the photo to use it
+
+image = face_recognition.load_image_file('D:/IMG_9905.jpg')
+img_rgb = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+facelocation = face_recognition.face_locations(img_rgb)
+
+test_faces_list = []
+
+for face in facelocation:
+    top, right, bottom, left = face
+    # You can access the actual face itself like this:
+    face_image = image[top:bottom, left:right]
+    test_img_resize = cv.resize(face_image, (48, 48))
+    test_faces_list.append(test_img_resize)
+    print("Found")
+
+
+face_data = np.array(test_faces_list)
+face_data = face_data.astype('float32')
+face_data = face_data / 255
+
+if len(face_data) != 0:
+    prediction = predict_stacked_model(model_custom, face_data)
+    print("prediction:", prediction)
+    classes = np.argmax(prediction, axis=1)
+    # print(names[classes[0]])
+    print(classes)
+'''
 for test_face in test_faces_list:
-    test_img_resize = cv.resize(test_face, (25, 25))
-    plt.imshow(test_img_resize)
-    plt.show()
+    # face_locations = face_recognition.face_locations(test_face)
     for idx in range(5):
         test_list = []
-        test_img = draw_haar_like_feature(test_img_resize, 0, 0,
-                                          test_img_resize.shape[1],
-                                          test_img_resize.shape[0],
+        test_img = draw_haar_like_feature(test_face, 0, 0,
+                                          test_face.shape[1],
+                                          test_face.shape[0],
                                           [feature_coord[idx_sorted[idx]]])
+        plt.imshow(test_img)
         test_flat = test_img.flatten()
         test_list.append(test_flat)
 
@@ -76,7 +119,8 @@ for test_face in test_faces_list:
             prediction = Ada.predict(test_test)
             print("prediction:", prediction)
 
-
+plt.show()
+'''
 '''
 img = cv.imread('D:/CK+48/sadness/S080_005_00000011.png')
 input_img_resize = cv.resize(img, (100, 100))
@@ -86,9 +130,10 @@ print(imgGray.shape)
 imgplot = plt.imshow(imgGray)
 plt.show()
 
+'''
 # input_img_resize = cv.resize(input_img, (25, 25))
 # imgGray = color.rgb2gray(input_img_resize)
-'''
+
 '''
 data_path = 'D:/CK+48'
 data_dir_list = os.listdir(data_path)
