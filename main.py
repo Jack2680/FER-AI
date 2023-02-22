@@ -43,6 +43,7 @@ cam = cv2.VideoCapture(0)
 cv2.namedWindow("test")
 img_counter = 0
 
+
 # Input data files are available in the "../input/" directory.
 # For example, running this (by clicking run or pressing Shift+Enter) will list the files in the input directory
 """
@@ -273,9 +274,7 @@ while True:
         face_list.append(face_resize)
         count = count + 1
 
-        # face_locations_en = face_recognition.face_locations(face_image)
         face_encodings = face_recognition.face_encodings(face_image)
-        # only works when in for loop cant figure out why
         name = "Unkown"
         for face_encoding in face_encodings:
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding)

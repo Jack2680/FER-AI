@@ -13,6 +13,7 @@ import argparse
 import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.ensemble import AdaBoostClassifier
+import face_recognition
 import skimage.data
 from keras.utils import np_utils
 from skimage import color
@@ -36,8 +37,8 @@ from skimage.feature import draw_haar_like_feature
 # calculates precision for 1:100 dataset with 90 tp and 30 fp
 from sklearn.metrics import precision_score
 
-# data_path = 'D:/CK+48'
-data_path = 'D:/images/train'
+data_path = 'D:/CK+48'
+# data_path = 'D:/images/train'
 data_dir_list = os.listdir(data_path)
 # test_img_anger = mpimg.imread('D:/CK+48/anger/S010_004_00000017.png')
 # test_img_contempt = mpimg.imread('D:/CK+48/contempt/S138_008_00000007.png')
@@ -50,12 +51,17 @@ for dataset in data_dir_list:
     img_list = os.listdir(data_path + '/' + dataset)
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
-        input_img = mpimg.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv.resize(input_img, (25, 25))
-        img_data_list.append(input_img_resize)
+        input_img = cv.imread(data_path + '/' + dataset + '/' + img)
+        face_locations = face_recognition.face_locations(input_img)
+        for face_location in face_locations:
+            top, right, bottom, left = face_location
+            face_image = input_img[top:bottom, left:right]
+            input_img_resize = cv.resize(face_image, (25, 25))
+            img_data_list.append(input_img_resize)
 
 img_data = np.array(img_data_list)
 img_data = img_data.astype('float32')
+img_data = img_data / 255
 
 num_classes = 7
 
@@ -63,7 +69,7 @@ num_of_samples_haar = img_data.shape[0]
 # num_of_samples_ada = img_data.shape[0] * 5
 haar_labels = np.ones((num_of_samples_haar,), dtype='int64')
 # ada_labels = np.ones((num_of_samples_ada,), dtype='int64')
-'''
+
 haar_labels[0:134] = 0
 haar_labels[135:188] = 1
 haar_labels[189:365] = 2
@@ -71,8 +77,8 @@ haar_labels[366:440] = 3
 haar_labels[441:647] = 4
 haar_labels[648:731] = 5
 haar_labels[732:980] = 6
-'''
 
+'''
 haar_labels[0:3992] = 0  # anger
 haar_labels[3993:4428] = 1  # disgust
 haar_labels[4429:8532] = 2  # fear
@@ -80,7 +86,7 @@ haar_labels[8533:15696] = 3  # happy
 haar_labels[15697:20678] = 4  # neutral
 haar_labels[20679:25616] = 5  # sadness
 haar_labels[25617:28821] = 6  # suprise
-
+'''
 # multiplying labels by 5 for all haar features.
 
 '''
@@ -165,6 +171,8 @@ while True:
 
 
 '''
+def rgb2gray(rgb):
+    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
 
 
 def extract_feature_image(img, feature_type, feature_coord=None):
@@ -175,8 +183,24 @@ def extract_feature_image(img, feature_type, feature_coord=None):
                              feature_coord=feature_coord)
 
 
+data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
+data_generator_no_aug = ImageDataGenerator()
+
+mix_generator = data_generator_woth_aug.flow(img_data, haar_labels)
+
+'''
 mix_images, mix_labels = shuffle(img_data, haar_labels, random_state=2)
-images = mix_images[:980]  # look at what contains in this dataset
+
+
+gray_images = []
+for img in mix_images:
+    img = rgb2gray(img)
+    gray_images.append(img)
+
+gray_data = np.array(gray_images)
+gray_data = gray_data.astype('float32')
+
+images = gray_data[:980]  # look at what contains in this dataset
 # images = img_data[:50]
 print(images.shape)
 
@@ -217,6 +241,14 @@ time_full_train = time() - t_start
 # Sort features in order of importance and plot the six most significant
 idx_sorted = np.argsort(clf.feature_importances_)[::-1]
 
+for idx in range(5):
+    print(idx)
+    print("------")
+    print(feature_coord[idx_sorted[idx]])
+    print("++++++++")
+
+'''
+
 '''
 fig, axes = plt.subplots(3, 2)
 for idx, ax in enumerate(axes.ravel()):
@@ -231,12 +263,18 @@ for idx, ax in enumerate(axes.ravel()):
 
 _ = fig.suptitle('The most important features')
 '''
+idx_mouth = [[(18, 8), (20, 17)], [(20, 8), (22, 17)]] # mouth coords
+
+idx_nose = [[(10, 10), (14, 14)], [(14, 10), (15, 14)]] # nose coords
+
+idx_eyes = [[(4, 21), (5, 4)], [(6, 21), (8, 4)], [(10, 10), (14, 14)], [(14, 10), (15, 14)], [(18, 8), (20, 17)], [(20, 8), (22, 17)]] # full haar face coords
+# idx_sorted.append(idx)
 
 # print(type(idx_sorted))
-np.save('haar_features.npy', idx_sorted)
+np.save('haar_features.npy', idx_eyes)
 
 haar_data_list = []
-print(img_data.shape)
+# print(img_data.shape)
 
 '''
 for img in img_data:
@@ -251,12 +289,13 @@ for img in img_data:
         haar_data_list.append(haar_flatten)
 
 '''
+
 print("applying haar")
 for img in img_data:
     applied_img = draw_haar_like_feature(img, 0, 0,
                                          img_data.shape[2],
                                          img_data.shape[1],
-                                         [feature_coord[idx_sorted[0]]])
+                                         [idx_eyes])
     # print(applied_img.shape)
     haar_flatten = applied_img.flatten()
     haar_data_list.append(haar_flatten)
@@ -268,6 +307,7 @@ print(haar_data.shape)
 haar_data = haar_data.astype('float32')
 haar_data = haar_data / 255
 
+
 # print(ada_labels.shape)
 
 a, b = shuffle(haar_data, haar_labels, random_state=2)
@@ -275,14 +315,19 @@ a, b = shuffle(haar_data, haar_labels, random_state=2)
 a_train, a_test, b_train, b_test = train_test_split(a, b, test_size=0.2, random_state=2)
 a_test = a_test
 
-data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
-data_generator_no_aug = ImageDataGenerator()
+# data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
+# data_generator_no_aug = ImageDataGenerator()
 
-abc = ensemble.AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=100,
-                         learning_rate=0.01)
+#train_generator = data_generator_woth_aug.flow(a_train, b_train)
+#validation_generator = data_generator_woth_aug.flow(a_test, b_test)
+
+# reduce n_estimators helps with overfitting
+# abc = ensemble.RandomForestClassifier(random_state=96, n_estimators=20)
+
+abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=20, learning_rate=0.01)
 
 # abc = ensemble.AdaBoostRegressor(n_estimators=100, learning_rate=0.01, random_state=96) # 0.04
-#abc = ensemble.AdaBoostRegressor(estimator=None, *, n_estimators=50, learning_rate=1.0, loss='linear', random_state=None, base_estimator='deprecated')
+# abc = ensemble.AdaBoostRegressor(estimator=None, *, n_estimators=50, learning_rate=1.0, loss='linear', random_state=None, base_estimator='deprecated')
 
 print(a_train.shape)
 print(b_train.shape)

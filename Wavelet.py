@@ -5,6 +5,7 @@ from keras.applications.densenet import layers
 from matplotlib import cm
 import pywt
 import pywt.data
+from sklearn import metrics
 
 import cv2
 import os
@@ -36,7 +37,7 @@ def get_concat(img1, img2, img3, img4):
 def create_model(x_train, y_train, callback):
     model = Sequential()
 
-    model.add(Conv2D(64, (3, 3), padding="same", input_shape=(52, 52, 3), activation='relu'))
+    model.add(Conv2D(64, (3, 3), padding="same", input_shape=(132, 132, 3), activation='relu'))
     model.add(Conv2D(64, (3, 3), padding="same", activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.5))
@@ -74,7 +75,7 @@ for dataset in data_dir_list:
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
         input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv2.resize(input_img, (48, 48))
+        input_img_resize = cv2.resize(input_img, (128, 128))
         imgGray = color.rgb2gray(input_img_resize)
         img_data_list.append(imgGray)
 
@@ -174,15 +175,16 @@ def getLabel(id):
 # print(pro_data_LL[0].shape)
 plt.imshow(pro_data[0])
 plt.show()
+print(pro_data.shape)
 
 Y = np_utils.to_categorical(labels, num_classes)
 
 x, y = shuffle(pro_data, Y, random_state=2)
 
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=2)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=2)
 x_test = x_test
 
-data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
+data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.2, height_shift_range=0.2)
 data_generator_no_aug = ImageDataGenerator()
 
 train_generator = data_generator_woth_aug.flow(x_train, y_train)
@@ -191,6 +193,7 @@ validation_generator = data_generator_woth_aug.flow(x_test, y_test)
 # x_train = x_train.reshape(list(x_train.shape) + [1])
 callback = EarlyStopping(monitor='loss', patience=5)
 
+'''
 # create directory for models
 os.makedirs('models')
 # fit and save models
@@ -202,13 +205,24 @@ for i in range(n_members):
     filename = 'models/model_' + str(i + 1) + '.h5'
     model.save(filename)
     print('>Saved %s' % filename)
+    
+'''
 
-# model_custom = create_model()
-# model_custom.summary()
+model_custom = create_model(x_train, y_train, callback)
+model_custom.summary()
 
 # print(np.array(x_train).shape) # 784,2
 # print(np.array(y_train).shape) # 784, 7
 # history = model_custom.fit(x_train, y_train, validation_split=0.2, epochs=100, batch_size=200, callbacks=[callback])
+
+y_true = y_test # label
+y_true = np.argmax(y_true, axis=1)
+y_pred = model_custom.predict(x_test)
+y_pred = np.argmax(y_pred, axis=1)
+
+print(metrics.confusion_matrix(y_true, y_pred))
+# Print the precision and recall, among other metrics
+print(metrics.classification_report(y_true, y_pred, digits=3))
 
 # abc = AdaBoostClassifier(random_state=96)
 

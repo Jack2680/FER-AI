@@ -36,7 +36,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import RandomForestClassifier
 
-
+'''
 iris = datasets.load_iris()
 A = iris.data
 B = iris.target
@@ -66,7 +66,7 @@ if not eyes_cascade.load(cv.samples.findFile(eyes_cascade_name)):
 if not mouth_cascade.load(cv.samples.findFile(mouth_cascade_name)):
     print('Error loading mouth cascade')
     exit(0)
-
+'''
 
 data_path = 'D:/CK+48'
 data_dir_list = os.listdir(data_path)
@@ -78,7 +78,7 @@ for dataset in data_dir_list:
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
         input_img = cv.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv.resize(input_img, (200, 200))
+        input_img_resize = cv.resize(input_img, (48, 48))
         imgGray = color.rgb2gray(input_img_resize)
         input_flat = imgGray.flatten()
         img_data_list.append(input_flat)
@@ -114,7 +114,7 @@ print(labels.shape)
 
 x, y = shuffle(img_data, labels, random_state=2)
 
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=2)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=2)
 x_test = x_test
 
 data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
@@ -148,18 +148,21 @@ print(X_train.shape)
 print(y_train.shape)
 '''
 
-abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=100, learning_rate=0.01)
+abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=20, learning_rate=0.01)
 
 # Train Adaboost Classifer
 abc.fit(x_train, y_train)
 
 # save the model to disk
-filename = 'Ada_model.sav'
-pickle.dump(abc, open(filename, 'wb'))
+#filename = 'Ada_model.sav'
+#pickle.dump(abc, open(filename, 'wb'))
 
-score_seen = abc.score(x_train, y_train)
-score_unseen = abc.score(x_test, y_test)
+y_true = y_test # label
+# y_true = np.argmax(y_true, axis=0)
+y_pred = abc.predict(x_test)
+# y_pred = np.argmax(y_pred, axis=0)
 
-print("Score seen data:", score_seen)
-print("Score unseen data:", score_unseen)
+print(metrics.confusion_matrix(y_true, y_pred))
+# Print the precision and recall, among other metrics
+print(metrics.classification_report(y_true, y_pred, digits=3))
 
