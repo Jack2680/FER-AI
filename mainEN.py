@@ -93,7 +93,7 @@ while True:
 
         # You can access the actual face itself like this:
         face_image = image[top:bottom, left:right]
-        face_resize = cv2.resize(face_image, (48, 48))
+        face_resize = cv2.resize(face_image, (64, 64))
         faceGray = color.rgb2gray(face_resize)
 
         titles = ['Approximation', ' Horizontal detail',

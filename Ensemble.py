@@ -148,7 +148,7 @@ for dataset in data_dir_list:
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
         input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
-        input_img_resize = cv2.resize(input_img, (48, 48))
+        input_img_resize = cv2.resize(input_img, (64, 64))
         imgGray = color.rgb2gray(input_img_resize)
         img_data_list.append(imgGray)
 
@@ -206,7 +206,7 @@ Y = to_categorical(labels, num_classes)
 
 x, y = shuffle(pro_data, Y, random_state=2)
 
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=2)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=2)
 x_test = x_test
 
 data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)

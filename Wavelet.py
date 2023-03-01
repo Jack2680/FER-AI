@@ -24,20 +24,36 @@ from keras.layers import Flatten
 from keras.layers import Activation
 from keras.layers.convolutional import Conv2D
 from keras.layers.convolutional import MaxPooling2D
+import face_recognition
 
 
 # combines numpy arrays to together into a 2x2
 def get_concat(img1, img2, img3, img4):
+    holder = []
     top = np.hstack((img1, img2))
     bottom = np.hstack((img3, img4))
     result = np.vstack((top, bottom))
-    return result
+
+    img2 = cv2.resize(img2, (68, 68))
+    img3 = cv2.resize(img3, (68, 68))
+    img4 = cv2.resize(img4, (68, 68))
+
+    level_2_top = np.hstack((result, img2))
+    level_2_bottom = np.hstack((img3, img4))
+    level_2_result = np.vstack((level_2_top, level_2_bottom))
+
+    level_2_result = cv2.resize(level_2_result, (68, 68))
+
+    plt.imshow(level_2_result)
+    plt.show()
+
+    return level_2_result
 
 
 def create_model(x_train, y_train, callback):
     model = Sequential()
 
-    model.add(Conv2D(64, (3, 3), padding="same", input_shape=(132, 132, 3), activation='relu'))
+    model.add(Conv2D(64, (3, 3), padding="same", input_shape=(68, 68, 3), activation='relu'))
     model.add(Conv2D(64, (3, 3), padding="same", activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.5))
@@ -69,7 +85,7 @@ data_path = 'D:/CK+48'
 data_dir_list = os.listdir(data_path)
 
 img_data_list = []
-
+'''
 for dataset in data_dir_list:
     img_list = os.listdir(data_path + '/' + dataset)
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
@@ -78,6 +94,20 @@ for dataset in data_dir_list:
         input_img_resize = cv2.resize(input_img, (128, 128))
         imgGray = color.rgb2gray(input_img_resize)
         img_data_list.append(imgGray)
+'''
+
+for dataset in data_dir_list:
+    img_list = os.listdir(data_path + '/' + dataset)
+    print('Loaded the images of dataset-' + '{}\n'.format(dataset))
+    for img in img_list:
+        input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
+        face_locations = face_recognition.face_locations(input_img)
+        for face_location in face_locations:
+            top, right, bottom, left = face_location
+            face_image = input_img[top:bottom, left:right]
+            input_img_resize = cv2.resize(face_image, (64, 64))
+            img_Gray = color.rgb2gray(input_img_resize)
+            img_data_list.append(img_Gray)
 
 img_data = np.array(img_data_list)
 # img_data = img_data.astype('float32')
@@ -96,7 +126,6 @@ labels[441:647] = 4
 labels[648:731] = 5
 labels[732:980] = 6
 
-
 print(len(img_data))
 
 processed_data = []
@@ -104,6 +133,7 @@ processed_data = []
 for img in img_data:
     # Load image
     holder = []
+    holder_2 = []
 
     # Wavelet transform of image, and plot approximation and details
     titles = ['Approximation', ' Horizontal detail',
@@ -184,7 +214,8 @@ x, y = shuffle(pro_data, Y, random_state=2)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=2)
 x_test = x_test
 
-data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.2, height_shift_range=0.2)
+data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1,
+                                             rotation_range=45, brightness_range=[0.4, 1.2])
 data_generator_no_aug = ImageDataGenerator()
 
 train_generator = data_generator_woth_aug.flow(x_train, y_train)
@@ -205,7 +236,6 @@ for i in range(n_members):
     filename = 'models/model_' + str(i + 1) + '.h5'
     model.save(filename)
     print('>Saved %s' % filename)
-    
 '''
 
 model_custom = create_model(x_train, y_train, callback)
@@ -215,7 +245,7 @@ model_custom.summary()
 # print(np.array(y_train).shape) # 784, 7
 # history = model_custom.fit(x_train, y_train, validation_split=0.2, epochs=100, batch_size=200, callbacks=[callback])
 
-y_true = y_test # label
+y_true = y_test  # label
 y_true = np.argmax(y_true, axis=1)
 y_pred = model_custom.predict(x_test)
 y_pred = np.argmax(y_pred, axis=1)

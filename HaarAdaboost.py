@@ -52,16 +52,28 @@ for dataset in data_dir_list:
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
         input_img = cv.imread(data_path + '/' + dataset + '/' + img)
-        face_locations = face_recognition.face_locations(input_img)
-        for face_location in face_locations:
-            top, right, bottom, left = face_location
-            face_image = input_img[top:bottom, left:right]
-            input_img_resize = cv.resize(face_image, (25, 25))
+        input_img_resize = cv.resize(input_img, (128, 128))
+        if dataset == "contempt":
             img_data_list.append(input_img_resize)
+            img_data_list.append(input_img_resize)
+            img_data_list.append(input_img_resize)
+        img_data_list.append(input_img_resize)
+
 
 img_data = np.array(img_data_list)
 img_data = img_data.astype('float32')
 img_data = img_data / 255
+
+'''
+#making more contempt data as is most common facial expression
+contempt_data = img_data[135:188]
+contempt_data_2 = contempt_data.copy()
+contempt_data_3 = contempt_data.copy()
+
+contempt_data.append(contempt_data_2)
+contempt_data.append(contempt_data_3)
+img_data.append(contempt_data)
+'''
 
 num_classes = 7
 
@@ -71,12 +83,12 @@ haar_labels = np.ones((num_of_samples_haar,), dtype='int64')
 # ada_labels = np.ones((num_of_samples_ada,), dtype='int64')
 
 haar_labels[0:134] = 0
-haar_labels[135:188] = 1
-haar_labels[189:365] = 2
-haar_labels[366:440] = 3
-haar_labels[441:647] = 4
-haar_labels[648:731] = 5
-haar_labels[732:980] = 6
+haar_labels[135:350] = 1
+haar_labels[351:527] = 2
+haar_labels[528:602] = 3
+haar_labels[603:809] = 4
+haar_labels[810:893] = 5
+haar_labels[894:1142] = 6
 
 '''
 haar_labels[0:3992] = 0  # anger
@@ -171,8 +183,10 @@ while True:
 
 
 '''
+
+
 def rgb2gray(rgb):
-    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+    return np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140])
 
 
 def extract_feature_image(img, feature_type, feature_coord=None):
@@ -183,7 +197,9 @@ def extract_feature_image(img, feature_type, feature_coord=None):
                              feature_coord=feature_coord)
 
 
-data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
+data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1,
+                                             rotation_range=45, brightness_range=[0.4, 1.2])
+
 data_generator_no_aug = ImageDataGenerator()
 
 mix_generator = data_generator_woth_aug.flow(img_data, haar_labels)
@@ -263,11 +279,18 @@ for idx, ax in enumerate(axes.ravel()):
 
 _ = fig.suptitle('The most important features')
 '''
-idx_mouth = [[(18, 8), (20, 17)], [(20, 8), (22, 17)]] # mouth coords
+idx_mouth = [[(18, 8), (20, 17)], [(20, 8), (22, 17)]]  # mouth coords
 
-idx_nose = [[(10, 10), (14, 14)], [(14, 10), (15, 14)]] # nose coords
+idx_nose = [[(10, 10), (14, 14)], [(14, 10), (15, 14)]]  # nose coords
 
-idx_eyes = [[(4, 21), (5, 4)], [(6, 21), (8, 4)], [(10, 10), (14, 14)], [(14, 10), (15, 14)], [(18, 8), (20, 17)], [(20, 8), (22, 17)]] # full haar face coords
+factor = 5.12  # when value 1 it is set to work on 25, 25 image
+idx_eyes = [[(round(4 * factor), round(21 * factor)), (round(6 * factor), round(4 * factor))],
+            [(round(6 * factor), round(21 * factor)), (round(8 * factor), round(4 * factor))],
+            [(round(10 * factor), round(10 * factor)), (round(14 * factor), round(14 * factor))],
+            [(round(14 * factor), round(10 * factor)), (round(15 * factor), round(14 * factor))],
+            [(round(18 * factor), round(8 * factor)), (round(20 * factor), round(17 * factor))],
+            [(round(20 * factor), round(8 * factor)),
+             (round(22 * factor), round(17 * factor))]]  # full haar face coords
 # idx_sorted.append(idx)
 
 # print(type(idx_sorted))
@@ -307,7 +330,6 @@ print(haar_data.shape)
 haar_data = haar_data.astype('float32')
 haar_data = haar_data / 255
 
-
 # print(ada_labels.shape)
 
 a, b = shuffle(haar_data, haar_labels, random_state=2)
@@ -318,13 +340,14 @@ a_test = a_test
 # data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
 # data_generator_no_aug = ImageDataGenerator()
 
-#train_generator = data_generator_woth_aug.flow(a_train, b_train)
-#validation_generator = data_generator_woth_aug.flow(a_test, b_test)
+# train_generator = data_generator_woth_aug.flow(a_train, b_train)
+# validation_generator = data_generator_woth_aug.flow(a_test, b_test)
 
 # reduce n_estimators helps with overfitting
 # abc = ensemble.RandomForestClassifier(random_state=96, n_estimators=20)
 
-abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=20, learning_rate=0.01)
+abc = AdaBoostClassifier(random_state=96, base_estimator=RandomForestClassifier(random_state=101), n_estimators=20,
+                         learning_rate=0.01)
 
 # abc = ensemble.AdaBoostRegressor(n_estimators=100, learning_rate=0.01, random_state=96) # 0.04
 # abc = ensemble.AdaBoostRegressor(estimator=None, *, n_estimators=50, learning_rate=1.0, loss='linear', random_state=None, base_estimator='deprecated')
@@ -333,7 +356,7 @@ print(a_train.shape)
 print(b_train.shape)
 # Train Adaboost Classifer
 print("fitting")
-abc.fit(a_train, b_train) #Run this to see if doesnt need to be removed
+abc.fit(a_train, b_train)  # Run this to see if doesnt need to be removed
 
 score_seen = abc.score(a_train, b_train)
 score_unseen = abc.score(a_test, b_test)
@@ -345,7 +368,7 @@ print("Score unseen data:", score_unseen)
 filename = 'Ada_model.sav'
 joblib.dump(abc, filename)
 
-y_true = b_test # label
+y_true = b_test  # label
 y_pred = abc.predict(a_test)
 
 print(metrics.confusion_matrix(y_true, y_pred))

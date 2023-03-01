@@ -28,17 +28,8 @@ img_counter = 0
 #Ada = pickle.load(open('Ada_model.sav', 'rb'))
 Ada = joblib.load('Ada_model.sav')
 print("test")
+
 idx_sorted = np.load('haar_features.npy')
-
-# save np.load
-np_load_old = np.load
-
-# modify the default parameters of np.load
-np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
-feature_coord = np.load('haar_feature_coords.npy')
-
-# restore np.load for future normal usage
-np.load = np_load_old
 
 feature_types = ['type-2-x', 'type-2-y']
 
@@ -68,35 +59,20 @@ while True:
     count = 0
     for face_location in face_locations:
         print("In loop")
-        sum_emotion = []
         top, right, bottom, left = face_location
         # You can access the actual face itself like this:
         face_image = image[top:bottom, left:right]
-        plt.imshow(face_image)
-        face_resize = cv2.resize(face_image, (25, 25))  # To change this to 48, 48 need to train Adaboost to be 48, 48
-        faceGray = color.rgb2gray(face_resize)
+        face_Gray = cv2.cvtColor(face_image, cv2.COLOR_RGB2GRAY) # Just to make face same as training data
+        backtorgb = cv2.cvtColor(face_Gray, cv2.COLOR_GRAY2RGB)
+        face_resize = cv2.resize(backtorgb, (128, 128))
         # Extract all possible features this takes to long so need to save as numpy
-        '''
-        for idx in range(5):
-            face_list = []
-            applied_img = draw_haar_like_feature(faceGray, 0, 0,
-                                                 faceGray.shape[1],
-                                                 faceGray.shape[0],
-                                                 [feature_coord[idx_sorted[idx]]])
-            # plt.imshow(applied_img)
-
-            face_flat = applied_img.flatten()
-            face_list.append(face_flat)
-
-            face_data = np.array(face_list)
-            face_data = face_data.astype('float32')
-            face_data = face_data / 255
-        '''
         face_list = []
-        applied_img = draw_haar_like_feature(faceGray, 0, 0,
-                                             faceGray.shape[1],
-                                             faceGray.shape[0],
-                                             [feature_coord[idx_sorted[0]]])
+        applied_img = draw_haar_like_feature(face_resize, 0, 0,
+                                             face_resize.shape[1],
+                                             face_resize.shape[0],
+                                             [idx_sorted])
+        plt.imshow(applied_img)
+        plt.show()
         face_flat = applied_img.flatten()
         face_list.append(face_flat)
 
@@ -106,10 +82,8 @@ while True:
             # for face in face_data:
         if len(face_data) != 0:
             prediction = Ada.predict(face_data)
-            sum_emotion.append(names[prediction[0]])
-            # print("prediction:", prediction)
-            # print(names[prediction[0]])
-        print(sum_emotion)
+            print("prediction:", prediction)
+            print(names[prediction[0]])
 
     removing_files = glob.glob('D:/PythonProgram/pythonProject/pythonProject/opencv_frame.png')
     for i in removing_files:
