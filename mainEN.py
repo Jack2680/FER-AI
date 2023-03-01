@@ -87,6 +87,7 @@ while True:
 
     face_list = []
     count = 0
+    max_lev = 3
     for face_location in face_locations:
         top, right, bottom, left = face_location
         holder = []
@@ -94,6 +95,9 @@ while True:
         # You can access the actual face itself like this:
         face_image = image[top:bottom, left:right]
         face_resize = cv2.resize(face_image, (64, 64))
+        faceGray = color.rgb2gray(face_resize)
+        print(faceGray.shape)
+        '''
         faceGray = color.rgb2gray(face_resize)
 
         titles = ['Approximation', ' Horizontal detail',
@@ -108,8 +112,19 @@ while True:
         concat_img = concat_img.astype('float32')
         concat_img = concat_img * 255
         backtorgb = cv2.cvtColor(concat_img, cv2.COLOR_GRAY2RGB)
+        '''
+        for level in range(max_lev, max_lev + 1):
+            c = pywt.wavedec2(faceGray, 'db2', mode='periodization', level=level)
+            c[0] /= np.abs(c[0]).max()
+            for detail_level in range(level):
+                c[detail_level + 1] = [d / np.abs(d).max() for d in c[detail_level + 1]]
+            arr, slices = pywt.coeffs_to_array(c)
+            # img_Gray = color.rgb2gray(arr)
+            arr = arr.astype('float32')
+            arr = arr * 255
+            backtorgb = cv2.cvtColor(arr, cv2.COLOR_GRAY2RGB)
+            face_list.append(backtorgb)
 
-        face_list.append(backtorgb)
         count = count + 1
 
     face_data = np.array(face_list)

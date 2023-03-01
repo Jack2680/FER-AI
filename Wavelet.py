@@ -25,9 +25,11 @@ from keras.layers import Activation
 from keras.layers.convolutional import Conv2D
 from keras.layers.convolutional import MaxPooling2D
 import face_recognition
+import matplotlib.image as mpimg
 
 
 # combines numpy arrays to together into a 2x2
+'''
 def get_concat(img1, img2, img3, img4):
     holder = []
     top = np.hstack((img1, img2))
@@ -48,12 +50,13 @@ def get_concat(img1, img2, img3, img4):
     plt.show()
 
     return level_2_result
+'''
 
 
 def create_model(x_train, y_train, callback):
     model = Sequential()
 
-    model.add(Conv2D(64, (3, 3), padding="same", input_shape=(68, 68, 3), activation='relu'))
+    model.add(Conv2D(64, (3, 3), padding="same", input_shape=(64, 64, 3), activation='relu'))
     model.add(Conv2D(64, (3, 3), padding="same", activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.5))
@@ -100,18 +103,17 @@ for dataset in data_dir_list:
     img_list = os.listdir(data_path + '/' + dataset)
     print('Loaded the images of dataset-' + '{}\n'.format(dataset))
     for img in img_list:
-        input_img = cv2.imread(data_path + '/' + dataset + '/' + img)
-        face_locations = face_recognition.face_locations(input_img)
-        for face_location in face_locations:
-            top, right, bottom, left = face_location
-            face_image = input_img[top:bottom, left:right]
-            input_img_resize = cv2.resize(face_image, (64, 64))
-            img_Gray = color.rgb2gray(input_img_resize)
-            img_data_list.append(img_Gray)
+        input_img = mpimg.imread(data_path + '/' + dataset + '/' + img)
+        input_img_resize = cv2.resize(input_img, (64, 64))
+        #img_Gray = color.rgb2gray(input_img_resize)
+        img_data_list.append(input_img_resize)
 
 img_data = np.array(img_data_list)
 # img_data = img_data.astype('float32')
 # img_data = img_data / 255
+
+
+
 
 num_classes = 7
 
@@ -126,47 +128,28 @@ labels[441:647] = 4
 labels[648:731] = 5
 labels[732:980] = 6
 
-print(len(img_data))
+
+print(img_data[0].shape)
 
 processed_data = []
 
+max_lev = 3
+label_levels = 3
+shape = img_data[0].shape
+
 for img in img_data:
-    # Load image
-    holder = []
-    holder_2 = []
+    for level in range(max_lev, max_lev + 1):
+        c = pywt.wavedec2(img, 'db2', mode='periodization', level=level)
+        c[0] /= np.abs(c[0]).max()
+        for detail_level in range(level):
+            c[detail_level + 1] = [d / np.abs(d).max() for d in c[detail_level + 1]]
+        arr, slices = pywt.coeffs_to_array(c)
+        # img_Gray = color.rgb2gray(arr)
+        arr = arr.astype('float32')
+        arr = arr * 255
+        backtorgb = cv2.cvtColor(arr, cv2.COLOR_GRAY2RGB)
+        processed_data.append(backtorgb)
 
-    # Wavelet transform of image, and plot approximation and details
-    titles = ['Approximation', ' Horizontal detail',
-              'Vertical detail', 'Diagonal detail']
-    coeffs2 = pywt.dwt2(img, 'bior1.3')
-    # print("break")
-    # print(coeffs2)
-    # processed_data.append(coeffs2)
-    LL, (LH, HL, HH) = coeffs2
-    for i, a in enumerate([LL, LH, HL, HH]):
-        # processed_data.append(a)
-        holder.append(a)
-
-    concat_img = get_concat(holder[0], holder[1], holder[2], holder[3])
-    concat_img = concat_img.astype('float32')
-    concat_img = concat_img * 255
-    backtorgb = cv2.cvtColor(concat_img, cv2.COLOR_GRAY2RGB)
-    processed_data.append(backtorgb)
-
-    '''
-    LL, (LH, HL, HH) = coeffs2
-    fig = plt.figure(figsize=(12, 3))
-    for i, a in enumerate([LL, LH, HL, HH]):
-        ax = fig.add_subplot(1, 4, i + 1)
-        # processed_data.append(fig.add_subplot(1, 4, i + 1)) # creating array filled with all the wavelet transformed data
-        ax.imshow(a, interpolation="nearest")
-        ax.set_title(titles[i], fontsize=10)
-        ax.set_xticks([])
-        ax.set_yticks([])
-
-    fig.tight_layout()
-    plt.show()
-    '''
 
 # print(img_data)
 # plt.show()
@@ -214,17 +197,17 @@ x, y = shuffle(pro_data, Y, random_state=2)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=2)
 x_test = x_test
 
-data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1,
-                                             rotation_range=45, brightness_range=[0.4, 1.2])
-data_generator_no_aug = ImageDataGenerator()
+# data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1,
+                                             # rotation_range=45, brightness_range=[0.4, 1.2])
+# data_generator_no_aug = ImageDataGenerator()
 
-train_generator = data_generator_woth_aug.flow(x_train, y_train)
-validation_generator = data_generator_woth_aug.flow(x_test, y_test)
+# train_generator = data_generator_woth_aug.flow(x_train, y_train)
+# validation_generator = data_generator_woth_aug.flow(x_test, y_test)
 
 # x_train = x_train.reshape(list(x_train.shape) + [1])
 callback = EarlyStopping(monitor='loss', patience=5)
 
-'''
+
 # create directory for models
 os.makedirs('models')
 # fit and save models
@@ -236,6 +219,7 @@ for i in range(n_members):
     filename = 'models/model_' + str(i + 1) + '.h5'
     model.save(filename)
     print('>Saved %s' % filename)
+
 '''
 
 model_custom = create_model(x_train, y_train, callback)
@@ -263,3 +247,5 @@ print(metrics.classification_report(y_true, y_pred, digits=3))
 # print("test loss, test acc:", results)
 
 # model_custom.save("wavelet")
+
+'''

@@ -172,23 +172,22 @@ labels[732:980] = 6
 
 processed_data = []
 
+max_lev = 3
+label_levels = 3
+shape = img_data[0].shape
+
 for img in img_data:
-    # Load image
-    holder = []
-
-    # Wavelet transform of image, and plot approximation and details
-    titles = ['Approximation', ' Horizontal detail',
-              'Vertical detail', 'Diagonal detail']
-    coeffs2 = pywt.dwt2(img, 'bior1.3')
-    LL, (LH, HL, HH) = coeffs2
-    for i, a in enumerate([LL, LH, HL, HH]):
-        holder.append(a)
-
-    concat_img = get_concat(holder[0], holder[1], holder[2], holder[3])
-    concat_img = concat_img.astype('float32')
-    concat_img = concat_img * 255
-    backtorgb = cv2.cvtColor(concat_img, cv2.COLOR_GRAY2RGB)
-    processed_data.append(backtorgb)
+    for level in range(max_lev, max_lev + 1):
+        c = pywt.wavedec2(img, 'db2', mode='periodization', level=level)
+        c[0] /= np.abs(c[0]).max()
+        for detail_level in range(level):
+            c[detail_level + 1] = [d / np.abs(d).max() for d in c[detail_level + 1]]
+        arr, slices = pywt.coeffs_to_array(c)
+        # img_Gray = color.rgb2gray(arr)
+        arr = arr.astype('float32')
+        arr = arr * 255
+        backtorgb = cv2.cvtColor(arr, cv2.COLOR_GRAY2RGB)
+        processed_data.append(backtorgb)
 
 pro_data = np.array(processed_data)
 pro_data = pro_data.astype('float32')
@@ -209,11 +208,11 @@ x, y = shuffle(pro_data, Y, random_state=2)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=2)
 x_test = x_test
 
-data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
-data_generator_no_aug = ImageDataGenerator()
+#data_generator_woth_aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.1, height_shift_range=0.1)
+#data_generator_no_aug = ImageDataGenerator()
 
-train_generator = data_generator_woth_aug.flow(x_train, y_train)
-validation_generator = data_generator_woth_aug.flow(x_test, y_test)
+#train_generator = data_generator_woth_aug.flow(x_train, y_train)
+#validation_generator = data_generator_woth_aug.flow(x_test, y_test)
 
 '''
 # split into train and test
